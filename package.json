@@ -12,7 +12,7 @@
     "user:create": "node scripts/create-user.mjs",
     "import:uth": "node scripts/import-uth.mjs",
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
-    "check": "node --check backend/server.mjs && node --check frontend/app.js",
+    "check": "node --check backend/server.mjs && node --check frontend/app.js && node --check frontend/motion.js",
     "data:restore": "node scripts/restore-source.mjs",
     "test:browser": "node scripts/browser-check.mjs",
     "test:cache": "node scripts/measure-cache.mjs",
@@ -22,7 +22,8 @@
     "format:check": "prettier --check backend frontend scripts tests docs .github package.json README.md database/README.md",
     "test:ui": "node scripts/check-ui-refinements.mjs",
     "test:ui:upgrade": "node scripts/check-ui-upgrade.mjs",
-    "test:ui:audit": "node scripts/check-ui-audit-fixes.mjs"
+    "test:ui:audit": "node scripts/check-ui-audit-fixes.mjs",
+    "test:ui:motion": "node scripts/check-ui-motion.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1169.0",

@@ -136,3 +136,7 @@ Nguồn thông tin: [Công đoàn UTH](https://congdoan.ut.edu.vn/) · [Cổng U
 Bản thảo đang soạn có bản lưu tạm **trong tab hiện tại**, tách theo tài khoản và phiên bản, tối đa 24 giờ. Nội dung này chưa được gửi lên máy chủ; file ảnh chưa tải lên cần chọn lại sau reload. Không dựa vào bản lưu tạm sau khi đóng tab; hãy lưu bản nháp lên máy chủ. đăng xuất xóa bản lưu của tài khoản đó. Form cảnh báo trước khi đóng/rời khi còn thay đổi chưa lưu.
 
 Trạng thái chuyên mục/tìm kiếm/phân trang và tab/bộ lọc biên tập được ghi vào URL để Back/Reload khôi phục. Tìm kiếm đầu trang luôn tìm toàn bộ tin. `test:ui:audit` đối chiếu các lỗi đã sửa; bật `ADMIN_LOGIN_FILE` để kiểm tra cả khu biên tập với dữ liệu thật.
+
+Giao diện dùng màu UTH, header căn giữa, thẻ tin và các thành phần biên tập thống nhất. `frontend/theme.css` chứa lớp giao diện; `frontend/motion.js` quản lý hiệu ứng xuất hiện khi cuộn, dialog/thông báo, thanh tiến độ đọc bài và nút về đầu trang. Hiệu ứng chỉ dùng opacity/transform, không ẩn nội dung chờ cuộn; `prefers-reduced-motion` tắt chuyển động và cuộn mượt, kể cả khi đổi thiết lập trong lúc mở trang. Không cần thư viện animation hay font từ dịch vụ ngoài.
+
+`npm run test:ui:motion` kiểm tra hiệu ứng thực tế trong trình duyệt, hover, focus dialog, thông báo liên tiếp, tiến độ đọc, nút về đầu trang và chế độ giảm chuyển động. Ảnh kiểm tra được lưu trong `output/ui-motion/`. Với `ADMIN_LOGIN_FILE`, chụp thêm khu biên tập/form bằng tài khoản local thật, không tạo hay sửa bài viết.

@@ -1,4 +1,5 @@
 import { readRouteState, publicUrl, workspaceUrl, DraftSession } from './ui-state.js';
+import { refreshMotion, presentDialog, presentToast, dismissToast } from './motion.js';
 const $ = (s) => document.querySelector(s),
   esc = (s) =>
     String(s ?? '').replace(
@@ -62,8 +63,9 @@ let toastTimer;
 function toast(message) {
   $('#toast').textContent = message;
   $('#toast').classList.add('visible');
+  presentToast($('#toast'));
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => $('#toast').classList.remove('visible'), 4500);
+  toastTimer = setTimeout(() => dismissToast($('#toast')), 4500);
 }
 let draftSession = null,
   draftDirty = false,
@@ -84,6 +86,7 @@ function modal(html) {
   (
     $('#dialog-body input:not([type=file]), #dialog-body textarea, #dialog-body select') || heading
   )?.focus({ preventScroll: true });
+  presentDialog($('#dialog'));
 }
 function confirmDraftLeave() {
   return (
@@ -207,7 +210,7 @@ function href(a) {
   return `/article/${encodeURIComponent(a.slug)}`;
 }
 function card(a) {
-  return `<article class="card"><a data-route href="${href(a)}">${picture(a)}${tag(a)}<h3>${esc(a.title)}</h3></a>${a.source_url ? '' : `<p>${esc(a.summary)}</p>`}${meta(a)}</article>`;
+  return `<article class="card"><a data-route href="${href(a)}">${picture(a)}${tag(a)}<h3>${esc(a.title)}</h3><span class="card-readmore" aria-hidden="true">Đọc tin <span>↗</span></span></a>${a.source_url ? '' : `<p>${esc(a.summary)}</p>`}${meta(a)}</article>`;
 }
 function syncNavigation() {
   const nav = $('#category-nav'),
@@ -244,7 +247,12 @@ function updateHeader() {
   $('#site-search').disabled = false;
   $('#search button').disabled = false;
   $('#site-search').value = state.query;
-  $('#account').textContent = state.user ? `${state.user.name} ↗` : 'Đăng nhập ↗';
+  $('#account').innerHTML =
+    `<span class="account-icon" aria-hidden="true">${state.user ? esc(state.user.name.trim().charAt(0).toLocaleUpperCase('vi')) : '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg>'}</span><span class="account-label">${state.user ? esc(state.user.name) : 'Đăng nhập'}</span><span aria-hidden="true">↗</span>`;
+  $('#account').setAttribute(
+    'aria-label',
+    state.user ? `Tài khoản ${state.user.name}` : 'Đăng nhập',
+  );
   $('#workspace').hidden = !['author', 'editor'].includes(state.user?.role);
   $('#categories').innerHTML = state.categories
     .map(
@@ -275,7 +283,7 @@ async function home() {
     title = state.query
       ? `Kết quả cho “${state.query}”`
       : state.categories.find((c) => c.id === state.category)?.name || 'Nhịp sống UTH.';
-  let html = `<section class="intro"><div><span class="eyebrow">THE CAMPUS JOURNAL</span><h1>${esc(title)}</h1><p>Thông tin đáng tin cậy. Những kết nối có ý nghĩa.</p></div><div class="edition">HÔM NAY<strong>${date(new Date())}</strong></div></section>`;
+  let html = `<section class="intro"><div><span class="eyebrow">THE CAMPUS JOURNAL</span><h1>${esc(title)}</h1><p>Thông tin đáng tin cậy. Những kết nối có ý nghĩa.</p></div><div class="edition"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-13 4h3m2 0h3m-8 3h3"/></svg><div>HÔM NAY<strong>${date(new Date())}</strong></div></div></section>`;
   if (!filtered && articles.length) {
     const a = articles[0],
       b = articles[1];
@@ -334,6 +342,7 @@ function bindPublicPagination() {
     bindPublicPagination();
     focusResults('#news-heading');
     history.replaceState({ ...history.state, scrollY }, '', location.href);
+    refreshMotion();
   };
   $('#prev')?.addEventListener('click', () => move(state.page - 1));
   $('#next')?.addEventListener('click', () => move(state.page + 1));
@@ -618,6 +627,7 @@ function renderHistory(history, versions) {
       draw();
       focusResults('#history-count');
     });
+    refreshMotion();
   }
   draw();
 }
@@ -711,6 +721,7 @@ function renderEditorialList(versions) {
       focusResults('#editorial-count');
     };
   }
+  refreshMotion();
 }
 
 function editArticle(v) {
@@ -850,6 +861,7 @@ function loadingView() {
   $('#content').setAttribute('aria-busy', 'true');
   $('#content').innerHTML =
     `<div class="loading-shell" aria-hidden="true"><p class="loading-caption">${label}</p><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-line"></div><div class="skeleton-grid">${Array.from({ length: editorial ? 4 : 3 }, () => '<div class="skeleton-card"><div class="skeleton skeleton-picture"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>').join('')}</div></div>`;
+  refreshMotion();
 }
 async function run(fn) {
   const generation = ++viewGeneration;
@@ -869,6 +881,7 @@ async function run(fn) {
     if (generation === viewGeneration) {
       $('#content').removeAttribute('aria-busy');
       $('#view-status').textContent = '';
+      refreshMotion();
     }
   }
 }

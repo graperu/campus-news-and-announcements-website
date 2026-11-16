@@ -12,6 +12,7 @@
     <title>UTH Campus — Tin tức & Kết nối</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/components.css" />
+    <link rel="stylesheet" href="/theme.css" />
     <script src="/app.js" type="module"></script>
   </head>
   <body>
@@ -55,14 +56,18 @@
       </div>
       <div class="container search-bar">
         <form class="search" id="search" role="search">
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="m16 16 4.5 4.5" />
+          </svg>
           <label class="sr-only" for="site-search">Tìm kiếm tin tức</label
           ><input
             id="site-search"
             name="q"
-            placeholder="Tìm tin tức, thông báo, hoạt động UTH…"
+            placeholder="Tìm tin tức UTH…"
             maxlength="100"
             type="search"
-          /><button aria-label="Tìm kiếm" type="submit">Tìm kiếm ↗</button>
+          /><button class="search-submit" aria-label="Tìm kiếm" type="submit">Tìm kiếm ↗</button>
         </form>
       </div>
     </header>
@@ -102,5 +107,9 @@
       <div id="dialog-body"></div>
     </dialog>
     <div id="toast" role="status" aria-live="polite"></div>
+    <div id="reading-progress" hidden aria-hidden="true"><span></span></div>
+    <button id="back-to-top" hidden aria-label="Về đầu trang" title="Về đầu trang">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m-7 7 7-7 7 7" /></svg>
+    </button>
   </body>
 </html>

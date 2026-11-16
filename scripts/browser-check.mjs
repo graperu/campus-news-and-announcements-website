@@ -21,6 +21,7 @@ try {
     });
     await page.goto(base);
     await page.locator('#search').waitFor();
+    await page.locator('#content .intro, #content .empty').first().waitFor();
     await page.locator('img').evaluateAll(async (imgs) => {
       await Promise.all(
         imgs.map(async (img) => {

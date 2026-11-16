@@ -19,7 +19,8 @@
     "test:freshness": "node scripts/measure-freshness.mjs",
     "test:workflow": "node tests/workflow.e2e.mjs",
     "format": "prettier --write backend frontend scripts tests docs .github package.json README.md database/README.md",
-    "format:check": "prettier --check backend frontend scripts tests docs .github package.json README.md database/README.md"
+    "format:check": "prettier --check backend frontend scripts tests docs .github package.json README.md database/README.md",
+    "test:ui": "node scripts/check-ui-refinements.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1169.0",

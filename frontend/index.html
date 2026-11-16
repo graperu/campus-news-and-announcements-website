@@ -24,18 +24,39 @@
     <header>
       <div class="container masthead">
         <a href="/" class="brand" aria-label="UTH Campus trang chủ"
-          ><span class="brand-icon">U<span>TH</span></span
-          ><span class="brand-word">campus<span>TIN TỨC & KẾT NỐI</span></span></a
+          ><img
+            class="brand-logo"
+            src="/assets/uth-logo.png"
+            alt="UTH — Trường Đại học Giao thông vận tải TP.HCM"
+            width="88"
+            height="34"
+          /><span class="brand-word">campus<span>TIN TỨC & KẾT NỐI</span></span></a
         >
         <div class="header-note">Một cộng đồng.<br /><strong>Nhiều câu chuyện.</strong></div>
         <button id="account" class="button outline">Đăng nhập <span>↗</span></button>
       </div>
       <div class="nav-wrap">
-        <nav class="container" aria-label="Chuyên mục">
-          <button class="nav-link active" data-category="">Tất cả tin tức</button>
-          <div id="categories"></div>
-          <button id="workspace" class="nav-link" hidden>Không gian biên tập ↗</button>
-        </nav>
+        <div class="container nav-shell">
+          <nav id="category-nav" aria-label="Chuyên mục">
+            <button class="nav-link active" data-category="">Tất cả tin tức</button>
+            <div id="categories"></div>
+            <button id="workspace" class="nav-link" hidden>Không gian biên tập ↗</button>
+          </nav>
+          <button id="nav-next" class="nav-next" aria-label="Xem thêm chuyên mục" hidden>›</button>
+        </div>
+        <p id="nav-hint" class="container nav-hint" hidden>Vuốt ngang để xem thêm chuyên mục →</p>
+      </div>
+      <div class="container search-bar">
+        <form class="search" id="search" role="search">
+          <label class="sr-only" for="site-search">Tìm kiếm tin tức</label
+          ><input
+            id="site-search"
+            name="q"
+            placeholder="Tìm tin tức, thông báo, hoạt động UTH…"
+            maxlength="100"
+            type="search"
+          /><button aria-label="Tìm kiếm" type="submit">Tìm kiếm ↗</button>
+        </form>
       </div>
     </header>
     <main id="main" class="container">
@@ -44,7 +65,9 @@
     <footer>
       <div class="container footer-grid">
         <div>
-          <a class="footer-brand" href="/">UTH <em>campus.</em></a>
+          <a class="footer-brand" href="/" aria-label="UTH Campus trang chủ"
+            ><img src="/assets/uth-logo.png" alt="UTH" width="88" height="34" /><em>campus.</em></a
+          >
           <p>Kết nối thông tin. Lan tỏa tri thức.</p>
         </div>
         <div>

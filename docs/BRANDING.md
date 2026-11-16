@@ -11,3 +11,5 @@ Bảng màu tham chiếu từ [CSS website chính thức UTH](https://ut.edu.vn/
 `#006568` là sắc xanh đậm bổ trợ do dự án chọn cho chữ nhỏ trên nền sáng. Nền, đường viền và chữ nội dung dùng màu trung tính; các trạng thái nghiệp vụ vẫn có màu phân biệt. Đây là tham chiếu màu từ giao diện web UTH, không phải tuyên bố đã áp dụng một cẩm nang thương hiệu in ấn.
 
 Các token nằm đầu `frontend/styles.css`. Favicon và `theme-color` dùng cùng màu xanh ngọc chính.
+
+Logo trên masthead dùng ảnh gốc từ [máy chủ chính thức UTH](https://ut.edu.vn/themes/ut/images/logo.png), lưu tại `frontend/assets/uth-logo.png`, giữ nguyên tỷ lệ, không vẽ lại hoặc đổi màu.

@@ -92,6 +92,7 @@ npm test
 npm run test:workflow
 # Chạy server local trước:
 npm run test:browser
+npm run test:ui
 ```
 
 - API tests kiểm tra quyền, draft privacy, approval, retry publication, revision isolation và failure/recovery.
@@ -125,3 +126,5 @@ Các lệnh trên chỉ kiểm tra cấu hình; không tạo tài nguyên. Khôn
 | [Nghiệm thu](docs/ACCEPTANCE.md)         | Đối chiếu mọi yêu cầu bắt buộc và trạng thái bằng chứng |
 
 Nguồn thông tin: [Công đoàn UTH](https://congdoan.ut.edu.vn/) · [Cổng UTH](https://uth.edu.vn/). Đây là dự án học tập; không phải cổng thông tin chính thức của trường.
+
+`test:ui` kiểm tra vị trí tìm kiếm, tiêu đề mobile, tin không trùng, bài gốc/tin liên quan và logo nguồn chính thức trên dữ liệu UTH đã restore. Có thể đặt `ADMIN_LOGIN_FILE=output/admin-login.txt` để kiểm tra thêm bộ lọc và phân trang biên tập bằng tài khoản local; không đưa file này lên Git.

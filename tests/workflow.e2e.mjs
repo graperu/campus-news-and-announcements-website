@@ -55,7 +55,7 @@ try {
     errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(base);
-  await page.locator('#search').waitFor();
+  await page.locator('#content .intro').waitFor();
   async function login(role) {
     await page.locator('#account').click();
     await page.getByLabel('Email', { exact: true }).fill(`${role}@test.invalid`);
@@ -66,7 +66,7 @@ try {
   async function logout() {
     await page.locator('#account').click();
     await page.locator('#logout').click();
-    await page.locator('#search').waitFor();
+    await page.locator('#content .intro').waitFor();
   }
   await login('author');
   await page.locator('#new-article').click();

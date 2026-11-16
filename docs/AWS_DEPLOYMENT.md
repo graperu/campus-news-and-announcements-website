@@ -20,6 +20,8 @@ aws sts get-caller-identity
 
 Chủ tài khoản tự xác nhận đăng nhập trong trình duyệt. Không gửi mật khẩu, OTP hoặc access key vào chat. Xem [hướng dẫn đăng nhập CLI của AWS](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html). Kiểm tra plan/credit của tài khoản trước khi apply; không tự nâng cấp sang Paid plan. Budget là cảnh báo, không phải giới hạn chi tiêu cứng.
 
+Trên Windows, có thể chạy `scripts\aws\login.cmd` từ CMD. Script dùng AWS CLI v2 đã cài trên máy hoặc bản công cụ cục bộ của dự án, đăng nhập vào profile `uth-campus` ở Singapore bằng chế độ `--remote`. Mở URL AWS hiện trong CMD, chấp thuận truy cập rồi dán mã ủy quyền từ AWS vào chính cửa sổ CMD đó. Không gửi mã vào chat. Sau đăng nhập, script gọi STS để xác minh danh tính; các lệnh triển khai tiếp theo dùng profile này.
+
 Không cần mua domain: người dùng truy cập domain HTTPS do CloudFront cấp. ALB là internal trong private subnets qua CloudFront VPC origin.
 
 ## Bootstrap hạ tầng

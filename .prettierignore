@@ -1,0 +1,7 @@
+node_modules/
+data/
+output/
+tmp/
+infra/aws/.terraform/
+frontend/assets/
+package-lock.json

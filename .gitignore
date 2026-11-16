@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 *.pem
+!infra/aws/rds-ca.pem
 *.key
 .aws/
 
@@ -32,3 +33,13 @@ Thumbs.db
 *.tfstate.*
 *.tfplan
 crash.log
+
+# Runtime data and evidence
+data/
+output/
+*.db
+*.db-shm
+*.db-wal
+
+*.tfvars
+!*.tfvars.example

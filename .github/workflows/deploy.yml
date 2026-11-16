@@ -1,0 +1,56 @@
+name: Deploy or rollback AWS
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Existing ECR tag for rollback; leave empty to build current commit'
+        required: false
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: aws-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci && npm run check && npm test
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Build immutable image or select rollback image
+        env:
+          REQUESTED_TAG: ${{ inputs.image_tag }}
+          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          TAG="${REQUESTED_TAG:-$GITHUB_SHA}"
+          [[ "$TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || exit 1
+          IMAGE="$REPOSITORY:$TAG"
+          if [ -z "$REQUESTED_TAG" ]; then
+            docker build -t "$IMAGE" .
+            docker push "$IMAGE"
+          fi
+          echo "DEPLOY_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Register task revision and deploy
+        env:
+          FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          SERVICE: ${{ vars.ECS_SERVICE }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition --task-definition "$FAMILY" --query taskDefinition > current.json
+          jq --arg image "$DEPLOY_IMAGE" 'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy,.deregisteredAt) | .containerDefinitions[0].image=$image' current.json > next.json
+          ARN=$(aws ecs register-task-definition --cli-input-json file://next.json --query taskDefinition.taskDefinitionArn --output text)
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$ARN" > /dev/null
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          ACTIVE=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
+          test "$ACTIVE" = "$ARN"

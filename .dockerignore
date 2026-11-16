@@ -1,0 +1,9 @@
+.git
+node_modules
+data
+output
+.env*
+*.tfstate*
+.terraform
+tests
+docs

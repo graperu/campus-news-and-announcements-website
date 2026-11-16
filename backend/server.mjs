@@ -10,9 +10,14 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const production = process.env.NODE_ENV === 'production';
 if (
   production &&
-  (!process.env.COGNITO_ISSUER || !process.env.COGNITO_CLIENT_ID || !process.env.UPLOAD_BUCKET)
+  (!process.env.COGNITO_ISSUER ||
+    !process.env.COGNITO_CLIENT_ID ||
+    !process.env.COGNITO_DOMAIN ||
+    !process.env.APP_ORIGIN ||
+    process.env.DB_SSL !== 'true' ||
+    !process.env.UPLOAD_BUCKET)
 )
-  throw new Error('Production requires Cognito and a private S3 upload bucket');
+  throw new Error('Production requires Cognito, APP_ORIGIN, verified database TLS and private S3');
 const uploadDirectory = resolve(process.env.UPLOAD_PATH || resolve(root, 'data/uploads'));
 const db = await connect();
 await migrate(db);
@@ -102,7 +107,7 @@ function validateArticle(data) {
   if (
     data.image &&
     !/^\/media\/[a-f0-9-]+\.(png|jpg|webp)$/.test(data.image) &&
-    !/^\/assets\/campus-[0-2]\.svg$/.test(data.image)
+    !/^\/assets\/news\/uth-\d+\.(png|jpg|webp)$/.test(data.image)
   )
     fail(400, 'Ảnh không hợp lệ');
 }

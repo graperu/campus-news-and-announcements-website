@@ -35,9 +35,14 @@ jobs:
           TAG="${REQUESTED_TAG:-$GITHUB_SHA}"
           [[ "$TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || exit 1
           IMAGE="$REPOSITORY:$TAG"
-          if [ -z "$REQUESTED_TAG" ]; then
+          if aws ecr describe-images --repository-name "${REPOSITORY#*/}" --image-ids "imageTag=$TAG" > /dev/null 2>&1; then
+            echo "Using existing immutable image tag."
+          elif [ -z "$REQUESTED_TAG" ]; then
             docker build -t "$IMAGE" .
             docker push "$IMAGE"
+          else
+            echo "Requested rollback image does not exist."
+            exit 1
           fi
           echo "DEPLOY_IMAGE=$IMAGE" >> "$GITHUB_ENV"
       - name: Register task revision and deploy
@@ -47,7 +52,8 @@ jobs:
           SERVICE: ${{ vars.ECS_SERVICE }}
         run: |
           set -euo pipefail
-          aws ecs describe-task-definition --task-definition "$FAMILY" --query taskDefinition > current.json
+          CURRENT=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
+          aws ecs describe-task-definition --task-definition "$CURRENT" --query taskDefinition > current.json
           jq --arg image "$DEPLOY_IMAGE" 'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy,.deregisteredAt) | .containerDefinitions[0].image=$image' current.json > next.json
           ARN=$(aws ecs register-task-definition --cli-input-json file://next.json --query taskDefinition.taskDefinitionArn --output text)
           aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$ARN" > /dev/null

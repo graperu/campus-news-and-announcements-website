@@ -52,3 +52,5 @@ Trust policy chỉ nhận OIDC của repo dự án trên nhánh `main`. Không l
 ## Hoàn tất nghiệm thu
 
 Thực hiện toàn bộ checklist trong `docs/ACCEPTANCE.md`, lưu URL ứng dụng, tài khoản thực tế, run URL CI/CD, sơ đồ triển khai có định danh tài nguyên, bằng chứng đo cache/freshness, alert và failure/recovery. Cập nhật báo cáo chi phí bằng bảng giá/workload lúc triển khai.
+
+Khi cập nhật hạ tầng sau một lần deploy qua GitHub, đồng bộ `image_tag` với image đang sử dụng trước khi apply để tránh Terraform đưa service về image bootstrap cũ.

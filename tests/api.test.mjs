@@ -83,7 +83,7 @@ test('editorial correctness, permissions, privacy and recovery', async (t) => {
       summary: 'Private test-only summary',
       body: 'Private test-only content',
       category_id: 'test',
-      image: '',
+      image: '/assets/news/uth-2095.png',
     };
     await t.test('draft stays out of public pages and caches', async () => {
       const r = await call('/api/articles', 'POST', draft, cookies.author);

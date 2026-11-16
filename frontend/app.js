@@ -204,7 +204,7 @@ async function article(slug) {
   document.title = `${a.title} — UTH Campus`;
   const sourced = !!a.source_url;
   $('#content').innerHTML =
-    `<div class="breadcrumb"><a data-route href="/">Trang chủ</a> / ${esc(a.category_name)}</div><article class="article">${tag(a)}<h1>${esc(a.title)}</h1>${meta(a)}${sourced ? `<div class="source-link source-top"><div><strong>Nguồn: ${esc(a.author_name)}</strong><p>Tin dẫn nguồn · Đọc nội dung đầy đủ tại website xuất bản.</p></div><a class="button" href="${esc(a.source_url)}" target="_blank" rel="noopener">Đọc bài gốc ↗</a></div>` : ''}${!sourced ? `<p class="summary">${esc(a.summary)}</p>` : ''}${a.image ? `<img class="article-hero" src="${esc(a.image)}" alt="Ảnh bài viết: ${esc(a.title)}">` : ''}${a.author_id?.startsWith('official-source:') ? '' : `<div class="article-body">${esc(a.body)}</div>`}<p class="article-updated">Cập nhật ${date(a.updated_at)}</p></article>${related.length ? `<section class="related"><div class="section-title"><h2>Đọc thêm cùng UTH</h2><a data-route href="/">Tất cả tin tức ↗</a></div><div class="related-grid">${related.map(card).join('')}</div></section>` : ''}`;
+    `<div class="breadcrumb"><a data-route href="/">Trang chủ</a> / ${esc(a.category_name)}</div><div class="article-layout"><article class="article">${tag(a)}<h1>${esc(a.title)}</h1>${meta(a)}${sourced ? `<div class="source-link source-top"><div><strong>Nguồn: ${esc(a.author_name)}</strong><p>Tin dẫn nguồn · Đọc nội dung đầy đủ tại website xuất bản.</p></div><a class="button" href="${esc(a.source_url)}" target="_blank" rel="noopener">Đọc bài gốc ↗</a></div>` : ''}${!sourced ? `<p class="summary">${esc(a.summary)}</p>` : ''}${a.image ? `<img class="article-hero" src="${esc(a.image)}" alt="Ảnh bài viết: ${esc(a.title)}">` : ''}${a.author_id?.startsWith('official-source:') ? '' : `<div class="article-body">${esc(a.body)}</div>`}<p class="article-updated">Cập nhật ${date(a.updated_at)}</p></article>${related.length ? `<aside class="related" aria-label="Tin đọc thêm"><div class="section-title"><h2>Đọc thêm cùng UTH</h2><a data-route href="/">Tất cả tin tức ↗</a></div><div class="related-grid">${related.map(card).join('')}</div></aside>` : ''}</div>`;
 }
 
 async function login() {
@@ -501,9 +501,9 @@ async function run(fn) {
     $('#retry').onclick = () => run(route);
   }
 }
-function navigate(path) {
+async function navigate(path) {
   history.pushState({}, '', path);
-  run(route);
+  await run(route);
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 document.addEventListener('click', (e) => {

@@ -76,6 +76,7 @@ try {
   assert.ok(await page.locator('#dialog').isVisible());
   page.once('dialog', (d) => d.accept());
   await page.locator('.dialog-close').click();
+  await page.locator('#dialog').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#dialog').isVisible(), false);
   await page.reload();
   await page.locator('#new-article').waitFor();

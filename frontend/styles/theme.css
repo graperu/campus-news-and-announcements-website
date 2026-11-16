@@ -706,9 +706,6 @@ footer {
   .card-readmore:hover {
     color: var(--primary);
   }
-  .card a:hover .card-readmore span {
-    transform: translateX(3px);
-  }
   .feature-media:hover,
   .side-media:hover {
     filter: brightness(0.98);
@@ -729,43 +726,7 @@ footer {
     text-decoration: none;
   }
 }
-@media (prefers-reduced-motion: no-preference) {
-  #content:not([aria-busy='true']) {
-    animation: none;
-  }
-  .card,
-  .side-feature,
-  .editorial-item,
-  .stat,
-  #back-to-top {
-    transition:
-      transform 0.2s var(--ease),
-      box-shadow 0.2s var(--ease),
-      border-color 0.2s var(--ease),
-      background-color 0.16s var(--ease);
-  }
-  .button,
-  .search,
-  .dialog-close,
-  .card-readmore span {
-    transition:
-      transform 0.16s var(--ease),
-      background-color 0.16s var(--ease),
-      border-color 0.16s var(--ease),
-      box-shadow 0.16s var(--ease);
-  }
-  @media (hover: hover) {
-    .card:hover {
-      transform: translateY(-3px);
-    }
-    .button:not(:disabled):active {
-      transform: translateY(1px);
-    }
-    #back-to-top:hover {
-      transform: translateY(-2px);
-    }
-  }
-}
+
 @media (max-width: 1099px) {
   .feature-content {
     padding: 24px;

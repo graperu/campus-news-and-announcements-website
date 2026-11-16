@@ -1,5 +1,11 @@
 import { readRouteState, publicUrl, workspaceUrl, DraftSession } from './ui-state.js';
-import { refreshMotion, presentDialog, presentToast, dismissToast } from './motion.js';
+import {
+  refreshMotion,
+  presentDialog,
+  dismissDialog,
+  presentToast,
+  dismissToast,
+} from './motion.js';
 const $ = (s) => document.querySelector(s),
   esc = (s) =>
     String(s ?? '').replace(
@@ -96,9 +102,9 @@ function confirmDraftLeave() {
     )
   );
 }
-function closeDialog() {
-  if ($('#dialog form[aria-busy="true"]')) return;
-  if (confirmDraftLeave()) $('#dialog').close();
+async function closeDialog() {
+  if ($('#dialog form[aria-busy="true"]') || $('#dialog').dataset.closing) return;
+  if (confirmDraftLeave()) await dismissDialog($('#dialog'));
 }
 $('.dialog-close').onclick = closeDialog;
 $('#dialog').addEventListener('click', (e) => {
@@ -189,7 +195,8 @@ function bindForm(handler) {
   };
 }
 $('#dialog').addEventListener('cancel', (e) => {
-  if ($('#dialog form[aria-busy="true"]') || !confirmDraftLeave()) e.preventDefault();
+  e.preventDefault();
+  closeDialog();
 });
 
 function errorBox() {
@@ -242,6 +249,7 @@ $('#search').onsubmit = (e) => {
   state.page = 1;
   navigate(publicUrl(state));
 };
+let navigationCategories;
 function updateHeader() {
   const authReady = state.config.authAvailable !== false;
   $('#account').disabled = !authReady;
@@ -260,12 +268,12 @@ function updateHeader() {
         : 'Không gian biên tập chưa mở',
   );
   $('#workspace').hidden = !['author', 'editor'].includes(state.user?.role);
-  $('#categories').innerHTML = state.categories
-    .map(
-      (c) =>
-        `<button class="nav-link ${state.category === c.id ? 'active' : ''}" data-category="${esc(c.id)}">${esc(c.name)}</button>`,
-    )
-    .join('');
+  if (navigationCategories !== state.categories) {
+    navigationCategories = state.categories;
+    $('#categories').innerHTML = state.categories
+      .map((c) => `<button class="nav-link" data-category="${esc(c.id)}">${esc(c.name)}</button>`)
+      .join('');
+  }
   document.querySelectorAll('[data-category]').forEach((button) => {
     button.classList.toggle('active', button.dataset.category === state.category);
     button.setAttribute('aria-pressed', String(button.dataset.category === state.category));
@@ -408,7 +416,7 @@ async function login() {
   });
   bindForm(async (data) => {
     state.user = await api('/api/auth/login', { method: 'POST', body: data });
-    $('#dialog').close();
+    await dismissDialog($('#dialog'));
     updateHeader();
     openWorkspace();
   });
@@ -424,7 +432,7 @@ $('#account').onclick = () => {
     sessionStorage.removeItem('uth_access_token');
     DraftSession.clearUser(state.user?.id);
     state.user = null;
-    $('#dialog').close();
+    await dismissDialog($('#dialog'));
     updateHeader();
     if (!state.config.localAuth) {
       location.assign(
@@ -504,7 +512,7 @@ async function workspace() {
         await api('/api/categories', { method: 'POST', body: data });
         state.categories = await api('/api/categories');
         updateHeader();
-        $('#dialog').close();
+        await dismissDialog($('#dialog'));
         toast('Đã thêm danh mục');
       });
     };
@@ -514,7 +522,7 @@ async function workspace() {
       );
       bindForm(async (data) => {
         await api('/api/users', { method: 'POST', body: data });
-        $('#dialog').close();
+        await dismissDialog($('#dialog'));
         toast('Đã tạo tài khoản');
       });
     };
@@ -792,7 +800,7 @@ function editArticle(v) {
     await api(v ? `/api/versions/${v.id}` : '/api/articles', { method: v ? 'PUT' : 'POST', body });
     backup.clear();
     draftDirty = false;
-    $('#dialog').close();
+    await dismissDialog($('#dialog'));
     toast('Đã lưu bản nháp');
     state.tab = 'articles';
     state.editorialQuery = '';
@@ -907,7 +915,7 @@ history.replaceState({ ...history.state, index: routeIndex }, '', location.href)
 async function navigate(path) {
   if ($('#dialog').open) {
     if (!confirmDraftLeave()) return;
-    $('#dialog').close();
+    await dismissDialog($('#dialog'));
   }
   history.replaceState({ ...history.state, scrollY }, '', location.href);
   history.pushState({ index: ++routeIndex, scrollY: 0 }, '', path);
@@ -932,7 +940,7 @@ window.addEventListener('popstate', async () => {
     history.go(routeIndex - nextIndex);
     return;
   }
-  if ($('#dialog').open) $('#dialog').close();
+  if ($('#dialog').open) await dismissDialog($('#dialog'));
   routeIndex = nextIndex;
   const y = history.state?.scrollY || 0;
   await run(route);
@@ -957,7 +965,7 @@ function changePassword() {
     sessionStorage.removeItem('uth_access_token');
     DraftSession.clearUser(state.user?.id);
     state.user = null;
-    $('#dialog').close();
+    await dismissDialog($('#dialog'));
     updateHeader();
     navigate('/');
     toast('Đã đổi mật khẩu. Vui lòng đăng nhập lại.');

@@ -1091,17 +1091,6 @@ textarea[name='body'] {
     max-width: 200px;
   }
 }
-@media (prefers-reduced-motion: no-preference) {
-  .button,
-  .card img {
-    transition:
-      filter 0.18s ease,
-      background 0.18s ease;
-  }
-  .button:hover {
-    filter: brightness(1.1);
-  }
-}
 
 @media (max-width: 760px) {
   .intro:has(#new-article) {

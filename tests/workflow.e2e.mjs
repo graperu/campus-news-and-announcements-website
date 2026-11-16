@@ -73,7 +73,19 @@ try {
   await page.getByLabel('Tiêu đề', { exact: true }).fill('Isolated browser workflow');
   await page.getByLabel('Tóm tắt', { exact: true }).fill('Browser integration test only');
   await page.getByLabel('Nội dung', { exact: true }).fill('Private browser integration content.');
+  let releaseSave;
+  const saveGate = new Promise((resolve) => (releaseSave = resolve));
+  await page.route('**/api/articles', async (route) => {
+    await saveGate;
+    await route.continue();
+  });
   await page.locator('#dialog button[type=submit]').click();
+  await page.locator('#dialog form[aria-busy="true"]').waitFor();
+  assert.ok(await page.locator('#dialog button[type=submit]').isDisabled());
+  assert.match(await page.locator('#form-progress').innerText(), /Đang lưu/);
+  await page.keyboard.press('Escape');
+  assert.ok(await page.locator('#dialog').isVisible());
+  releaseSave();
   await page.getByRole('button', { name: 'Gửi duyệt', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Gửi duyệt', exact: true }).click();
   await page.locator('.status.submitted').waitFor();
@@ -84,9 +96,23 @@ try {
   assert.equal(await publicPage.getByText('Isolated browser workflow', { exact: true }).count(), 0);
   await logout();
   await login('editor');
+  await page.locator('#open-queue').waitFor();
+  await page.locator('#open-queue').click();
+  await page.locator('#editorial-sort').waitFor();
+  assert.equal(await page.locator('#editorial-sort').inputValue(), 'priority');
+  assert.equal(await page.locator('.needs-review').count(), 1);
   await page.getByRole('button', { name: 'Duyệt', exact: true }).click();
   await page.locator('.status.approved').waitFor();
   await page.getByRole('button', { name: 'Xuất bản', exact: true }).click();
+  await page.locator('.status.published').waitFor();
+  await page.locator('[data-tab="history"]').click();
+  await page.locator('.history-table').waitFor();
+  assert.equal(await page.locator('.history-table tbody tr').count(), 1);
+  assert.match(
+    await page.locator('.history-table tbody tr').innerText(),
+    /Isolated browser workflow/,
+  );
+  await page.locator('[data-tab="articles"]').click();
   await page.locator('.status.published').waitFor();
   await mkdir('output/screenshots', { recursive: true });
   await page.screenshot({ path: 'output/screenshots/editorial-workflow-test.png', fullPage: true });

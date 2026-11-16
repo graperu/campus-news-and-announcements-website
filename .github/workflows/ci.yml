@@ -44,4 +44,4 @@ jobs:
       - run: terraform -chdir=infra/aws init -backend=false
       - run: terraform -chdir=infra/aws validate
       - name: Verify production container builds
-        run: docker build -t campus-ci .
+        run: docker build -f infra/docker/Dockerfile -t campus-ci .

@@ -16,7 +16,7 @@ npm run data:restore
 npm start
 ```
 
-Mở **http://127.0.0.1:3000**. Dữ liệu local nằm trong `data/campus.db` và bị loại khỏi Git.
+Mở **http://127.0.0.1:3000**. Dữ liệu local nằm trong `storage/data/campus.db` và bị loại khỏi Git.
 
 `data:restore` khôi phục snapshot tin thật đã kiểm chứng, chạy lại không nhân đôi bản ghi và không ghi đè phiên bản công khai hiện có. Nội dung đầy đủ của tin dẫn nguồn nằm ở bài gốc; hệ thống không giả lập rằng các tin đó được tác giả nội bộ viết.
 
@@ -32,7 +32,7 @@ Nếu nguồn không truy cập được, importer báo lỗi; không tự sinh 
 
 Không có mật khẩu mặc định hoặc tài khoản demo trong repo.
 
-Tài khoản quản trị local của chủ dự án đã được tạo theo email cung cấp. Thông tin đăng nhập nằm trong `output/admin-login.txt` trên máy hiện tại, không được commit. Có thể đổi mật khẩu từ menu tài khoản; session local cũ được thu hồi sau khi đổi.
+Tài khoản quản trị local của chủ dự án đã được tạo theo email cung cấp. Thông tin đăng nhập nằm trong `storage/private/admin-login.txt` trên máy hiện tại, không được commit. Có thể đổi mật khẩu từ menu tài khoản; session local cũ được thu hồi sau khi đổi.
 
 Trên máy mới, tạo tài khoản thật đầu tiên bằng biến môi trường:
 
@@ -66,23 +66,41 @@ Draft → Submitted → Approved → Published
 
 ```text
 .
-├── frontend/              # HTML, CSS, JavaScript và ảnh nguồn thật
-│   └── assets/news/
+├── frontend/
+│   ├── index.html         # Trang HTML chính
+│   ├── js/                # Luồng ứng dụng, trạng thái và hiệu ứng
+│   ├── styles/            # Bố cục, thành phần và giao diện UTH
+│   └── assets/            # Logo và ảnh nguồn thật
 ├── backend/               # HTTP API, DB adapter và password hashing
 ├── database/
 │   ├── migrations/        # Schema, khóa ngoại và index
 │   └── sources/           # Snapshot metadata tin thật có provenance
-├── infra/aws/             # Terraform, provider lock và RDS CA
-├── scripts/               # Import/restore, tạo user, đo cache/freshness/chi phí
+├── config/                # Mẫu biến môi trường và cấu hình Prettier
+├── infra/
+│   ├── aws/               # Terraform, provider lock và RDS CA
+│   └── docker/            # Dockerfile và quy tắc build context
+├── scripts/
+│   ├── data/              # Nhập/khôi phục tin thật
+│   ├── users/             # Tạo tài khoản
+│   ├── checks/            # Kiểm tra UI và trình duyệt
+│   ├── metrics/           # Đo cache/freshness và gửi metric
+│   └── aws/               # Ước tính chi phí
 ├── tests/                 # API tests và browser workflow trong DB tạm
 ├── docs/                  # Kiến trúc, API, deploy, vận hành, nghiệm thu
+├── storage/               # Dữ liệu và file phát sinh trên máy; Git ignore
+│   ├── data/              # Database và ảnh tải lên
+│   ├── private/           # Thông tin tài khoản local
+│   ├── reports/           # Kết quả, ảnh kiểm tra và bằng chứng
+│   └── tmp/               # File tạm và công cụ phát triển
 ├── .github/workflows/     # CI và manual deploy/rollback qua OIDC
-├── Dockerfile
 ├── package.json
+├── package-lock.json
 └── README.md
 ```
 
-`data/`, `output/`, `tmp/`, secrets và Terraform state không được đưa lên Git. Xem [database và sơ đồ quan hệ](database/README.md).
+Xem [bản đồ thư mục và vị trí file](docs/PROJECT_STRUCTURE.md) để tìm nhanh theo chức năng, [danh sách script](scripts/README.md), hoặc [database và sơ đồ quan hệ](database/README.md). Dữ liệu trong `storage/` (ngoài README), cấu hình `config/local.env`, secrets và Terraform state không được đưa lên Git.
+
+Khi cần tùy chỉnh port/database, sao chép `config/local.env.example` thành `config/local.env`. Các lệnh npm đọc cùng file cấu hình này; chạy mặc định không cần tạo file.
 
 ## Kiểm thử
 
@@ -95,6 +113,7 @@ npm run test:browser
 npm run test:ui
 npm run test:ui:upgrade
 npm run test:ui:audit
+npm run test:ui:motion
 ```
 
 - API tests kiểm tra quyền, draft privacy, approval, retry publication, revision isolation và failure/recovery.
@@ -116,20 +135,21 @@ Các lệnh trên chỉ kiểm tra cấu hình; không tạo tài nguyên. Khôn
 
 ## Tài liệu
 
-| Tài liệu                                 | Nội dung                                                |
-| ---------------------------------------- | ------------------------------------------------------- |
-| [Phân tích đề](docs/PROJECT_BRIEF.md)    | Yêu cầu, phạm vi và tỷ trọng chấm điểm                  |
-| [Database](database/README.md)           | Schema, ERD, transaction và nguồn dữ liệu               |
-| [API](docs/API.md)                       | Endpoint và quyền truy cập                              |
-| [Kiến trúc](docs/ARCHITECTURE.md)        | Network/trust boundaries, scaling và cache              |
-| [Triển khai AWS](docs/AWS_DEPLOYMENT.md) | Bootstrap, Cognito và CI/CD                             |
-| [Vận hành](docs/OPERATIONS.md)           | Workload, p95, freshness, alert, failure và cleanup     |
-| [Chi phí](docs/COST.md)                  | Giá AWS truy xuất thật và giả định ngân sách            |
-| [Nghiệm thu](docs/ACCEPTANCE.md)         | Đối chiếu mọi yêu cầu bắt buộc và trạng thái bằng chứng |
+| Tài liệu                                    | Nội dung                                                |
+| ------------------------------------------- | ------------------------------------------------------- |
+| [Phân tích đề](docs/PROJECT_BRIEF.md)       | Yêu cầu, phạm vi và tỷ trọng chấm điểm                  |
+| [Bản đồ thư mục](docs/PROJECT_STRUCTURE.md) | Tìm file, cấu hình local và vị trí dữ liệu đã chuyển    |
+| [Database](database/README.md)              | Schema, ERD, transaction và nguồn dữ liệu               |
+| [API](docs/API.md)                          | Endpoint và quyền truy cập                              |
+| [Kiến trúc](docs/ARCHITECTURE.md)           | Network/trust boundaries, scaling và cache              |
+| [Triển khai AWS](docs/AWS_DEPLOYMENT.md)    | Bootstrap, Cognito và CI/CD                             |
+| [Vận hành](docs/OPERATIONS.md)              | Workload, p95, freshness, alert, failure và cleanup     |
+| [Chi phí](docs/COST.md)                     | Giá AWS truy xuất thật và giả định ngân sách            |
+| [Nghiệm thu](docs/ACCEPTANCE.md)            | Đối chiếu mọi yêu cầu bắt buộc và trạng thái bằng chứng |
 
 Nguồn thông tin: [Công đoàn UTH](https://congdoan.ut.edu.vn/) · [Cổng UTH](https://uth.edu.vn/). Đây là dự án học tập; không phải cổng thông tin chính thức của trường.
 
-`test:ui` kiểm tra vị trí tìm kiếm, tiêu đề mobile, tin không trùng, bài gốc/tin liên quan và logo nguồn chính thức trên dữ liệu UTH đã restore. Có thể đặt `ADMIN_LOGIN_FILE=output/admin-login.txt` để kiểm tra thêm bộ lọc và phân trang biên tập bằng tài khoản local; không đưa file này lên Git.
+`test:ui` kiểm tra vị trí tìm kiếm, tiêu đề mobile, tin không trùng, bài gốc/tin liên quan và logo nguồn chính thức trên dữ liệu UTH đã restore. Có thể đặt `ADMIN_LOGIN_FILE=storage/private/admin-login.txt` để kiểm tra thêm bộ lọc và phân trang biên tập bằng tài khoản local; không đưa file này lên Git.
 
 `test:ui:upgrade` kiểm tra tải chậm, tìm kiếm liên tiếp, ảnh/tiêu đề tách biệt, thẻ tin, focus bàn phím và reduced motion. Với `ADMIN_LOGIN_FILE`, kiểm tra thêm các cách sắp xếp và bảng lịch sử xuất bản trên dữ liệu thật. Luồng form đang lưu, hàng chờ và lịch sử cũng được kiểm tra trong `test:workflow` bằng database tạm riêng.
 
@@ -137,6 +157,6 @@ Bản thảo đang soạn có bản lưu tạm **trong tab hiện tại**, tách
 
 Trạng thái chuyên mục/tìm kiếm/phân trang và tab/bộ lọc biên tập được ghi vào URL để Back/Reload khôi phục. Tìm kiếm đầu trang luôn tìm toàn bộ tin. `test:ui:audit` đối chiếu các lỗi đã sửa; bật `ADMIN_LOGIN_FILE` để kiểm tra cả khu biên tập với dữ liệu thật.
 
-Giao diện dùng màu UTH, header căn giữa, thẻ tin và các thành phần biên tập thống nhất. `frontend/theme.css` chứa lớp giao diện; `frontend/motion.js` quản lý hiệu ứng xuất hiện khi cuộn, dialog/thông báo, thanh tiến độ đọc bài và nút về đầu trang. Hiệu ứng chỉ dùng opacity/transform, không ẩn nội dung chờ cuộn; `prefers-reduced-motion` tắt chuyển động và cuộn mượt, kể cả khi đổi thiết lập trong lúc mở trang. Không cần thư viện animation hay font từ dịch vụ ngoài.
+Giao diện dùng màu UTH, header căn giữa, thẻ tin và các thành phần biên tập thống nhất. `frontend/styles/theme.css` chứa lớp giao diện; `frontend/js/motion.js` quản lý hiệu ứng xuất hiện khi cuộn, dialog/thông báo, thanh tiến độ đọc bài và nút về đầu trang. Hiệu ứng chỉ dùng opacity/transform, không ẩn nội dung chờ cuộn; `prefers-reduced-motion` tắt chuyển động và cuộn mượt, kể cả khi đổi thiết lập trong lúc mở trang. Không cần thư viện animation hay font từ dịch vụ ngoài.
 
-`npm run test:ui:motion` kiểm tra hiệu ứng thực tế trong trình duyệt, hover, focus dialog, thông báo liên tiếp, tiến độ đọc, nút về đầu trang và chế độ giảm chuyển động. Ảnh kiểm tra được lưu trong `output/ui-motion/`. Với `ADMIN_LOGIN_FILE`, chụp thêm khu biên tập/form bằng tài khoản local thật, không tạo hay sửa bài viết.
+`npm run test:ui:motion` kiểm tra hiệu ứng thực tế trong trình duyệt, hover, focus dialog, thông báo liên tiếp, tiến độ đọc, nút về đầu trang và chế độ giảm chuyển động. Ảnh kiểm tra được lưu trong `storage/reports/ui-motion/`. Với `ADMIN_LOGIN_FILE`, chụp thêm khu biên tập/form bằng tài khoản local thật, không tạo hay sửa bài viết.

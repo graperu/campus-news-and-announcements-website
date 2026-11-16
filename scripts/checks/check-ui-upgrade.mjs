@@ -79,7 +79,7 @@ try {
         }),
       ),
     );
-    await page.screenshot({ path: `output/screenshots/upgraded-home-${width}.png` });
+    await page.screenshot({ path: `storage/reports/screenshots/upgraded-home-${width}.png` });
     assert.deepEqual(errors, []);
     await context.close();
   }
@@ -152,13 +152,13 @@ try {
       ),
     );
     await page.locator('#history-query').fill('');
-    await page.screenshot({ path: 'output/screenshots/upgraded-history-1440.png' });
+    await page.screenshot({ path: 'storage/reports/screenshots/upgraded-history-1440.png' });
     await page.setViewportSize({ width: 375, height: 1080 });
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
-    await page.screenshot({ path: 'output/screenshots/upgraded-history-375.png' });
+    await page.screenshot({ path: 'storage/reports/screenshots/upgraded-history-375.png' });
     await page.close();
   }
   console.log(

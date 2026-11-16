@@ -58,7 +58,7 @@ function summarize(phase) {
     uniqueOriginRequestIds: new Set(group.map((s) => s.requestId).filter(Boolean)).size,
   };
 }
-await mkdir('output/evidence', { recursive: true });
+await mkdir('storage/reports/evidence', { recursive: true });
 const result = {
   startedAt,
   finishedAt: new Date().toISOString(),
@@ -74,7 +74,7 @@ const result = {
   baseline: summarize('uncached-baseline'),
   samples,
 };
-await writeFile('output/evidence/cache.json', JSON.stringify(result, null, 2));
+await writeFile('storage/reports/evidence/cache.json', JSON.stringify(result, null, 2));
 console.log(JSON.stringify({ cached: result.cached, baseline: result.baseline }));
 
 await publishMetrics({ PublicReadP95Ms: result.cached.p95Ms });

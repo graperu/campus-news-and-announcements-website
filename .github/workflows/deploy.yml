@@ -38,7 +38,7 @@ jobs:
           if aws ecr describe-images --repository-name "${REPOSITORY#*/}" --image-ids "imageTag=$TAG" > /dev/null 2>&1; then
             echo "Using existing immutable image tag."
           elif [ -z "$REQUESTED_TAG" ]; then
-            docker build -t "$IMAGE" .
+            docker build -f infra/docker/Dockerfile -t "$IMAGE" .
             docker push "$IMAGE"
           else
             echo "Requested rollback image does not exist."

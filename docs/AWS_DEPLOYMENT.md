@@ -26,7 +26,7 @@ CloudFront VPC origin có thể mất nhiều phút để chuyển trạng thái
 
 ## Dữ liệu và tài khoản thật
 
-- Chạy một ECS task từ task definition ứng dụng, cùng security group/subnet, override command thành `node scripts/restore-source.mjs`. Task nhận DATABASE_URL từ Secrets Manager; không cần đưa DB ra Internet để seed.
+- Chạy một ECS task từ task definition ứng dụng, cùng security group/subnet, override command thành `node scripts/data/restore-source.mjs`. Task nhận DATABASE_URL từ Secrets Manager; không cần đưa DB ra Internet để seed.
 - Snapshot chứa 30 tin dẫn nguồn có thật và 5 chuyên mục. Không chứa người dùng hay mật khẩu.
 - Tạo người dùng quản trị đầu tiên trong Cognito bằng email chủ dự án, thêm vào group `editor`; chủ tài khoản tự đặt mật khẩu qua luồng Cognito. Không sao chép mật khẩu local lên AWS.
 - Sau đó editor có thể mời tác giả/người đọc qua mục Quản lý. Cognito gửi email mời; task role chỉ được tạo user và thêm group trong user pool của dự án.

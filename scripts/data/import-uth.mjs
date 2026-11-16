@@ -2,7 +2,7 @@
 // Full source articles remain on the official publisher's website.
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { connect, migrate } from '../backend/db.mjs';
+import { connect, migrate } from '../../backend/db.mjs';
 const base = 'https://congdoan.ut.edu.vn';
 const response = await fetch(`${base}/wp-json/wp/v2/posts?per_page=30&_embed`, {
   signal: AbortSignal.timeout(30000),

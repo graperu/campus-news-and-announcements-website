@@ -17,7 +17,7 @@ npm run test:browser
 
 `test:workflow` chạy trình duyệt với database tạm riêng, kiểm tra tác giả tạo/gửi bài, editor duyệt/xuất bản, người đọc xem và bản sửa chưa duyệt không lộ ra ngoài. Windows dùng Edge; Linux CI cài Chromium. Không tạo tài khoản thử nghiệm trong database ứng dụng.
 
-Ảnh chụp và kết quả local nằm trong `output/`, không commit dữ liệu cá nhân hoặc mật khẩu.
+Ảnh chụp và kết quả local nằm trong `storage/reports/`, không commit dữ liệu cá nhân hoặc mật khẩu.
 
 ## Workload cache bắt buộc
 
@@ -29,7 +29,7 @@ $env:REQUESTS = '200'
 npm run test:cache
 ```
 
-Script warmup một lần, sau đó 200 request cùng URL với concurrency 1, rồi 200 request có query string riêng để tạo baseline chưa cache. Lưu thời gian từng mẫu, status, latency, `X-Cache`, `Age` và `X-Request-ID` vào `output/evidence/cache.json`.
+Script warmup một lần, sau đó 200 request cùng URL với concurrency 1, rồi 200 request có query string riêng để tạo baseline chưa cache. Lưu thời gian từng mẫu, status, latency, `X-Cache`, `Age` và `X-Request-ID` vào `storage/reports/evidence/cache.json`.
 
 - Báo cáo p95 từ chính tập 200 mẫu của mỗi phase, tỷ lệ lỗi và tổng thời lượng.
 - Cache hit chỉ được thống kê khi server trả header CDN thật. Local không có CDN sẽ báo `null`.

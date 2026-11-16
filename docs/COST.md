@@ -41,7 +41,7 @@ Dự phòng kế hoạch **30 USD/tháng** cho public IPv4, S3, ECR, CloudFront 
 ## Cập nhật dự toán
 
 ```powershell
-node scripts/estimate-cost.mjs
+node scripts/aws/estimate-cost.mjs
 ```
 
 Script thất bại nếu không xác định đúng một SKU cho từng đơn giá; không tự thay bằng giá giả. Sau khi chạy, cập nhật bảng này nếu các đơn giá thay đổi.

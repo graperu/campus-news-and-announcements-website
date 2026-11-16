@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { connect, migrate } from '../backend/db.mjs';
-import { hashPassword } from '../backend/passwords.mjs';
+import { connect, migrate } from '../../backend/db.mjs';
+import { hashPassword } from '../../backend/passwords.mjs';
 const {
   USER_EMAIL: email,
   USER_NAME: name,

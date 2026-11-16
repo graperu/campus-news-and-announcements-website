@@ -46,7 +46,7 @@ resource "aws_cloudwatch_dashboard" "app" {
     ["AWS/CloudFront", "5xxErrorRate", "DistributionId", aws_cloudfront_distribution.app.id, "Region", "Global"]] } },
     { type = "metric", x = 12, y = 0, width = 12, height = 6, properties = { title = "Origin requests (ALB, all routes)", region = var.region, period = 60, stat = "Sum", metrics = [["AWS/ApplicationELB", "RequestCount", "LoadBalancer", aws_lb.app.arn_suffix]] } },
     { type = "metric", x = 0, y = 6, width = 12, height = 6, properties = { title = "Origin response p95 (seconds)", region = var.region, period = 60, stat = "p95", metrics = [["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", aws_lb.app.arn_suffix]] } },
-    { type = "text", x = 12, y = 6, width = 12, height = 6, properties = { markdown = "Public read p95 and publication freshness are measured end-to-end by scripts/measure-cache.mjs. ALB requests include health/UI/API traffic; use request-ID logs and controlled workload for article-only origin counts. See docs/OPERATIONS.md for drill and recovery." } }
+    { type = "text", x = 12, y = 6, width = 12, height = 6, properties = { markdown = "Public read p95 and publication freshness are measured end-to-end by scripts/metrics/measure-cache.mjs. ALB requests include health/UI/API traffic; use request-ID logs and controlled workload for article-only origin counts. See docs/OPERATIONS.md for drill and recovery." } }
   ] })
 
 }

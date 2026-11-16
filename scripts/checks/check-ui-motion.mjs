@@ -7,7 +7,7 @@ const browser = await chromium.launch({
   channel: process.env.BROWSER_CHANNEL || 'msedge',
   headless: true,
 });
-await mkdir('output/ui-motion', { recursive: true });
+await mkdir('storage/reports/ui-motion', { recursive: true });
 const wait = async (page) => {
   await page.locator('#content[aria-busy]').waitFor({ state: 'detached' });
   await page.locator('.intro,.article').first().waitFor();
@@ -86,14 +86,14 @@ try {
   await page.locator('.article-updated').scrollIntoViewIfNeeded();
   await expect.poll(progress).toBeGreaterThan(before + 0.1);
   assert.ok((await progress()) <= 1);
-  await page.screenshot({ path: 'output/ui-motion/article-progress.png' });
+  await page.screenshot({ path: 'storage/reports/ui-motion/article-progress.png' });
   await page.locator('.brand').click();
   await wait(page);
   await expect(page.locator('#reading-progress')).toBeHidden();
 
   // Exercise the notification lifecycle without changing any server data.
   await page.evaluate(async () => {
-    const motion = await import('/motion.js'),
+    const motion = await import('/js/motion.js'),
       toast = document.querySelector('#toast');
     toast.textContent = 'Kiểm tra hiển thị thông báo';
     toast.classList.add('visible');
@@ -104,13 +104,13 @@ try {
   await settle(page);
   await expect(page.locator('#toast')).toHaveClass('visible');
   await page.evaluate(async () =>
-    (await import('/motion.js')).dismissToast(document.querySelector('#toast')),
+    (await import('/js/motion.js')).dismissToast(document.querySelector('#toast')),
   );
   await expect(page.locator('#toast')).not.toHaveClass('visible');
   await page.evaluate(async () => {
     const toast = document.querySelector('#toast');
     toast.classList.add('visible');
-    (await import('/motion.js')).dismissToast(toast);
+    (await import('/js/motion.js')).dismissToast(toast);
   });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(page.locator('#toast')).not.toHaveClass('visible');
@@ -145,13 +145,13 @@ try {
   assert.equal(await page.evaluate(() => motionStarts.length), 0);
   await page.keyboard.press('Escape');
   await expect(page.locator('#content')).toHaveCSS('opacity', '1');
-  await page.screenshot({ path: 'output/ui-motion/home-1440.png', fullPage: true });
+  await page.screenshot({ path: 'storage/reports/ui-motion/home-1440.png', fullPage: true });
   await page.setViewportSize({ width: 375, height: 900 });
   await page.reload();
   await wait(page);
-  await page.screenshot({ path: 'output/ui-motion/home-375.png', fullPage: true });
+  await page.screenshot({ path: 'storage/reports/ui-motion/home-375.png', fullPage: true });
   await page.locator('#account').click();
-  await page.screenshot({ path: 'output/ui-motion/login-375.png' });
+  await page.screenshot({ path: 'storage/reports/ui-motion/login-375.png' });
   await page.keyboard.press('Escape');
   findings.push({ motion: 'reduced', effects: 0, visibleContent: true, instantScroll: true });
 
@@ -166,13 +166,13 @@ try {
     await page.locator('#dialog [type=submit]').click();
     await page.locator('#editorial-results').waitFor();
     await wait(page);
-    await page.screenshot({ path: 'output/ui-motion/workspace-1440.png', fullPage: true });
+    await page.screenshot({ path: 'storage/reports/ui-motion/workspace-1440.png', fullPage: true });
     await page.setViewportSize({ width: 375, height: 900 });
     await page.reload();
     await wait(page);
-    await page.screenshot({ path: 'output/ui-motion/workspace-375.png', fullPage: true });
+    await page.screenshot({ path: 'storage/reports/ui-motion/workspace-375.png', fullPage: true });
     await page.locator('#new-article').click();
-    await page.screenshot({ path: 'output/ui-motion/editor-375.png' });
+    await page.screenshot({ path: 'storage/reports/ui-motion/editor-375.png' });
     await page.keyboard.press('Escape');
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
@@ -181,7 +181,10 @@ try {
     findings.push({ workspace: 'real account', form: 'opened without modifying data' });
   }
   assert.deepEqual(errors, []);
-  await writeFile('output/ui-motion/results.json', JSON.stringify(findings, null, 2) + '\n');
+  await writeFile(
+    'storage/reports/ui-motion/results.json',
+    JSON.stringify(findings, null, 2) + '\n',
+  );
   console.log(JSON.stringify(findings));
   await page.close();
 } finally {

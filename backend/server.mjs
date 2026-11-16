@@ -18,7 +18,7 @@ if (
     !process.env.UPLOAD_BUCKET)
 )
   throw new Error('Production requires Cognito, APP_ORIGIN, verified database TLS and private S3');
-const uploadDirectory = resolve(process.env.UPLOAD_PATH || resolve(root, 'data/uploads'));
+const uploadDirectory = resolve(process.env.UPLOAD_PATH || resolve(root, 'storage/data/uploads'));
 const db = await connect();
 await migrate(db);
 

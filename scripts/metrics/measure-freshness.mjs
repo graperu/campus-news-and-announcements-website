@@ -30,9 +30,9 @@ while (Date.now() - start <= 60000) {
   }
   await new Promise((resolve) => setTimeout(resolve, 1000));
 }
-await mkdir('output/evidence', { recursive: true });
+await mkdir('storage/reports/evidence', { recursive: true });
 await writeFile(
-  'output/evidence/freshness.json',
+  'storage/reports/evidence/freshness.json',
   JSON.stringify(
     {
       url: ARTICLE_URL,

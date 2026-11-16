@@ -1,0 +1,13 @@
+.git
+node_modules
+storage
+data
+output
+tmp
+.aws
+config/local.env
+.env*
+**/*.tfstate*
+**/.terraform
+tests
+docs

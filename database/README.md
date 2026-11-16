@@ -1,6 +1,6 @@
 # Database
 
-Production dùng **PostgreSQL trên AWS RDS**. Local dùng SQLite để chạy trực tiếp bằng Node.js 24. Dữ liệu nằm trong `data/`, không đưa vào Git. Schema chung nằm trong `migrations/`; adapter kết nối nằm trong `backend/db.mjs`.
+Production dùng **PostgreSQL trên AWS RDS**. Local dùng SQLite để chạy trực tiếp bằng Node.js 24. Dữ liệu nằm trong `storage/data/`, không đưa vào Git. Schema chung nằm trong `migrations/`; adapter kết nối nằm trong `backend/db.mjs`.
 
 ## Sơ đồ quan hệ
 

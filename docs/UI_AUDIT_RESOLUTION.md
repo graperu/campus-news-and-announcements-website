@@ -10,10 +10,10 @@
 | Dialog không tên/focus               | aria-labelledby, focus input hoặc heading, trả focus khi đóng                                    | test:ui:audit + workflow                                                 |
 | Ảnh không bấm được                   | Liên kết ảnh hero và ảnh tin phụ                                                                 | Browser checks                                                           |
 | Hộp ảnh kế thừa margin/position      | Reset media component, contain ảnh hero, hộp ảnh nằm trong khung                                 | Đo bounding boxes ở 320–2560 px                                          |
-| Mobile nhiều lớp header/stats/filter | Utility chữ ngắn cỡ 11px; header gọn giữ logo giữa; thống kê và bộ lọc thu/mở; thẻ feed dạng gọn | Ảnh chụp và số đo trong output/ui-audit-fixed                            |
+| Mobile nhiều lớp header/stats/filter | Utility chữ ngắn cỡ 11px; header gọn giữ logo giữa; thống kê và bộ lọc thu/mở; thẻ feed dạng gọn | Ảnh chụp và số đo trong storage/reports/ui-audit-fixed                   |
 | Lịch sử mở bài mới nhất              | API snapshot private có phân quyền và modal đúng version                                         | API test + workflow xuất bản hai phiên bản                               |
 | Campus logo chưa sắc nét             | Wordmark/icon SVG riêng và favicon đồng bộ                                                       | Kiểm tra brand center và responsive                                      |
 
-`output/ui-audit/` giữ bằng chứng trước sửa. `output/ui-audit-fixed/` giữ số đo/ảnh sau sửa. Các thư mục output không đưa lên Git.
+`storage/reports/ui-audit/` giữ bằng chứng trước sửa. `storage/reports/ui-audit-fixed/` giữ số đo/ảnh sau sửa. Các thư mục output không đưa lên Git.
 
 Không coi các kiểm tra này là chứng nhận WCAG đầy đủ; đã kiểm chứng các lỗi cụ thể trong audit.

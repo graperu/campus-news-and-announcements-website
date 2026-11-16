@@ -47,7 +47,7 @@ export async function connect() {
   }
   if (process.env.NODE_ENV === 'production')
     throw new Error('DATABASE_URL is required in production');
-  const file = process.env.SQLITE_PATH || 'data/campus.db';
+  const file = process.env.SQLITE_PATH || 'storage/data/campus.db';
   mkdirSync(dirname(file), { recursive: true });
   const sqlite = new DatabaseSync(file);
   sqlite.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;');

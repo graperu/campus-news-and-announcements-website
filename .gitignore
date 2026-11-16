@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+/config/local.env
 *.pem
 !infra/aws/rds-ca.pem
 *.key
@@ -18,8 +19,8 @@ __pycache__/
 venv/
 
 # Temporary files and logs
-tmp/
-temp/
+/tmp/
+/temp/
 *.log
 
 # Local tooling and operating system files
@@ -35,8 +36,10 @@ Thumbs.db
 crash.log
 
 # Runtime data and evidence
-data/
-output/
+storage/*
+!storage/README.md
+/data/
+/output/
 *.db
 *.db-shm
 *.db-wal

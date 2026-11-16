@@ -6,7 +6,7 @@ const browser = await chromium.launch({
   headless: true,
 });
 const findings = [];
-await mkdir('output/screenshots', { recursive: true });
+await mkdir('storage/reports/screenshots', { recursive: true });
 try {
   for (const width of [375, 768, 1440]) {
     const context = await browser.newContext({
@@ -32,7 +32,10 @@ try {
         }),
       );
     });
-    await page.screenshot({ path: `output/screenshots/home-${width}.png`, fullPage: true });
+    await page.screenshot({
+      path: `storage/reports/screenshots/home-${width}.png`,
+      fullPage: true,
+    });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
     if (overflow || errors.length) throw new Error(JSON.stringify({ width, overflow, errors }));
     const link = page.locator('a[data-route]').first();
@@ -49,13 +52,16 @@ try {
           }),
         );
       });
-      await page.screenshot({ path: `output/screenshots/article-${width}.png`, fullPage: true });
+      await page.screenshot({
+        path: `storage/reports/screenshots/article-${width}.png`,
+        fullPage: true,
+      });
     }
     findings.push({ width, overflow, errors });
     await context.close();
   }
   await writeFile(
-    'output/browser-check.json',
+    'storage/reports/browser-check.json',
     JSON.stringify({ timestamp: new Date().toISOString(), base, findings }, null, 2),
   );
   console.log(JSON.stringify(findings));

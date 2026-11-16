@@ -7,23 +7,23 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "dev": "node --env-file-if-exists=.env --watch backend/server.mjs",
-    "start": "node --env-file-if-exists=.env backend/server.mjs",
-    "user:create": "node scripts/create-user.mjs",
-    "import:uth": "node scripts/import-uth.mjs",
+    "dev": "node --env-file-if-exists=config/local.env --watch backend/server.mjs",
+    "start": "node --env-file-if-exists=config/local.env backend/server.mjs",
+    "user:create": "node --env-file-if-exists=config/local.env scripts/users/create-user.mjs",
+    "import:uth": "node --env-file-if-exists=config/local.env scripts/data/import-uth.mjs",
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
-    "check": "node --check backend/server.mjs && node --check frontend/app.js && node --check frontend/motion.js",
-    "data:restore": "node scripts/restore-source.mjs",
-    "test:browser": "node scripts/browser-check.mjs",
-    "test:cache": "node scripts/measure-cache.mjs",
-    "test:freshness": "node scripts/measure-freshness.mjs",
+    "check": "node --check backend/server.mjs && node --check frontend/js/app.js && node --check frontend/js/motion.js",
+    "data:restore": "node --env-file-if-exists=config/local.env scripts/data/restore-source.mjs",
+    "test:browser": "node scripts/checks/browser-check.mjs",
+    "test:cache": "node scripts/metrics/measure-cache.mjs",
+    "test:freshness": "node scripts/metrics/measure-freshness.mjs",
     "test:workflow": "node tests/workflow.e2e.mjs",
-    "format": "prettier --write backend frontend scripts tests docs .github package.json README.md database/README.md",
-    "format:check": "prettier --check backend frontend scripts tests docs .github package.json README.md database/README.md",
-    "test:ui": "node scripts/check-ui-refinements.mjs",
-    "test:ui:upgrade": "node scripts/check-ui-upgrade.mjs",
-    "test:ui:audit": "node scripts/check-ui-audit-fixes.mjs",
-    "test:ui:motion": "node scripts/check-ui-motion.mjs"
+    "format": "prettier --ignore-path config/prettier.ignore --write config backend frontend scripts tests docs .github package.json README.md database/README.md storage/README.md",
+    "format:check": "prettier --ignore-path config/prettier.ignore --check config backend frontend scripts tests docs .github package.json README.md database/README.md storage/README.md",
+    "test:ui": "node scripts/checks/check-ui-refinements.mjs",
+    "test:ui:upgrade": "node scripts/checks/check-ui-upgrade.mjs",
+    "test:ui:audit": "node scripts/checks/check-ui-audit-fixes.mjs",
+    "test:ui:motion": "node scripts/checks/check-ui-motion.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1169.0",
@@ -34,5 +34,6 @@
   "devDependencies": {
     "@playwright/test": "^1.65.1",
     "prettier": "^3.10.1"
-  }
+  },
+  "prettier": "./config/prettier.json"
 }

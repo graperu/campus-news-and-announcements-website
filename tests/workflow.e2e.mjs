@@ -129,8 +129,11 @@ try {
   );
   await page.locator('[data-tab="articles"]').click();
   await page.locator('.status.published').waitFor();
-  await mkdir('output/screenshots', { recursive: true });
-  await page.screenshot({ path: 'output/screenshots/editorial-workflow-test.png', fullPage: true });
+  await mkdir('storage/reports/screenshots', { recursive: true });
+  await page.screenshot({
+    path: 'storage/reports/screenshots/editorial-workflow-test.png',
+    fullPage: true,
+  });
   await publicPage.reload();
   await publicPage.locator('.feature h2').waitFor();
   await publicPage.locator('.feature a[data-route]').first().click();

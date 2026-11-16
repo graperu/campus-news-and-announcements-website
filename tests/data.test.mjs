@@ -13,7 +13,7 @@ test('verified UTH source snapshot restores repeatably without creating accounts
   let db;
   try {
     for (let i = 0; i < 2; i++)
-      await promisify(execFile)(process.execPath, ['scripts/restore-source.mjs'], {
+      await promisify(execFile)(process.execPath, ['scripts/data/restore-source.mjs'], {
         env: process.env,
       });
     db = await connect();

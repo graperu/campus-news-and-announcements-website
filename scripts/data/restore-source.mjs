@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
-import { connect, migrate } from '../backend/db.mjs';
+import { connect, migrate } from '../../backend/db.mjs';
 const snapshot = JSON.parse(
-  await readFile(new URL('../database/sources/uth.json', import.meta.url), 'utf8'),
+  await readFile(new URL('../../database/sources/uth.json', import.meta.url), 'utf8'),
 );
 if (snapshot.source !== 'https://congdoan.ut.edu.vn/')
   throw new Error('Unexpected source snapshot');

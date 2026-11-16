@@ -10,7 +10,7 @@ const wait = async (page) => {
   await page.locator('#content[aria-busy]').waitFor({ state: 'detached' });
   await page.locator('.intro,.article,.empty').first().waitFor();
 };
-await mkdir('output/ui-audit-fixed', { recursive: true });
+await mkdir('storage/reports/ui-audit-fixed', { recursive: true });
 const measurements = [];
 try {
   for (const width of [320, 375, 768, 1366, 1920, 2560]) {
@@ -56,7 +56,7 @@ try {
       assert.ok(result.firstFeedTop < 1200);
     }
     if ([375, 1920].includes(width))
-      await page.screenshot({ path: `output/ui-audit-fixed/home-${width}.png` });
+      await page.screenshot({ path: `storage/reports/ui-audit-fixed/home-${width}.png` });
     await page.locator('.feature-media').click();
     await page.locator('.article').waitFor();
     assert.ok(new URL(page.url()).pathname.startsWith('/article/'));
@@ -152,14 +152,17 @@ try {
     await page.locator('.workspace-overview').waitFor();
     assert.equal(await page.locator('.workspace-overview').getAttribute('open'), null);
     assert.equal(await page.locator('.filter-panel').getAttribute('open'), null);
-    await page.screenshot({ path: 'output/ui-audit-fixed/editorial-375.png' });
+    await page.screenshot({ path: 'storage/reports/ui-audit-fixed/editorial-375.png' });
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
   }
   await page.close();
-  await writeFile('output/ui-audit-fixed/measurements.json', JSON.stringify(measurements, null, 2));
+  await writeFile(
+    'storage/reports/ui-audit-fixed/measurements.json',
+    JSON.stringify(measurements, null, 2),
+  );
   console.log(JSON.stringify(measurements));
   console.log(
     'Audit regressions passed: responsive vector brand, contrast, media links, URL Back/Reload, global search, stable pagination, labelled/focused dialog, compact workspace and version snapshots.',

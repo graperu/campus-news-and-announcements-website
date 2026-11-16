@@ -1,7 +1,6 @@
 node_modules/
-data/
-output/
-tmp/
+storage/*
+!storage/README.md
 infra/aws/.terraform/
 frontend/assets/
 package-lock.json

@@ -40,7 +40,7 @@ try {
     assert.ok(
       await page.locator('.brand-logo').evaluate((img) => img.complete && img.naturalWidth > 0),
     );
-    await page.screenshot({ path: `output/screenshots/refined-home-${width}.png` });
+    await page.screenshot({ path: `storage/reports/screenshots/refined-home-${width}.png` });
     await page.locator('.feature a[data-route]').first().click();
     await page.locator('.related').waitFor();
     const source = await page.locator('.source-top').boundingBox(),
@@ -58,7 +58,7 @@ try {
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
-    await page.screenshot({ path: `output/screenshots/refined-article-${width}.png` });
+    await page.screenshot({ path: `storage/reports/screenshots/refined-article-${width}.png` });
     await page.close();
   }
   if (process.env.ADMIN_LOGIN_FILE) {
@@ -91,13 +91,13 @@ try {
       categoryTexts.length > 0 && categoryTexts.every((text) => text.includes('Thông báo')),
     );
     await page.locator('#clear-filters').click();
-    await page.screenshot({ path: 'output/screenshots/refined-editorial-1440.png' });
+    await page.screenshot({ path: 'storage/reports/screenshots/refined-editorial-1440.png' });
     await page.setViewportSize({ width: 375, height: 1000 });
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
-    await page.screenshot({ path: 'output/screenshots/refined-editorial-375.png' });
+    await page.screenshot({ path: 'storage/reports/screenshots/refined-editorial-375.png' });
     await page.close();
   }
   console.log(

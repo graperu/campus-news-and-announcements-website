@@ -281,8 +281,22 @@ async function login() {
     return;
   }
   modal(
-    `<span class="eyebrow">KHÔNG GIAN BIÊN TẬP</span><h2>Chào mừng trở lại.</h2><p>Đăng nhập bằng tài khoản được ban biên tập cấp.</p><form><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required><label for="password">Mật khẩu</label><input id="password" name="password" type="password" autocomplete="current-password" required>${errorBox()}<div class="form-actions"><button type="submit" class="button">Đăng nhập ↗</button></div></form>`,
+    `<span class="eyebrow">KHÔNG GIAN BIÊN TẬP</span><h2>Chào mừng trở lại.</h2><p>Đăng nhập bằng tài khoản được ban biên tập cấp.</p><form><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required><label for="password">Mật khẩu</label><div class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" required><button id="toggle-password" class="password-toggle" type="button" aria-controls="password" aria-pressed="false" aria-label="Hiện mật khẩu">Hiện</button></div><p id="caps-lock" class="hint" role="status" hidden>Caps Lock đang bật.</p>${errorBox()}<div class="form-actions"><button type="submit" class="button">Đăng nhập ↗</button></div></form>`,
   );
+  $('#toggle-password').onclick = () => {
+    const input = $('#password'),
+      show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    $('#toggle-password').textContent = show ? 'Ẩn' : 'Hiện';
+    $('#toggle-password').setAttribute('aria-pressed', String(show));
+    $('#toggle-password').setAttribute('aria-label', show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+  };
+  $('#password').addEventListener('keyup', (event) => {
+    $('#caps-lock').hidden = !event.getModifierState('CapsLock');
+  });
+  $('#password').addEventListener('input', () => {
+    $('#form-error').textContent = '';
+  });
   bindForm(async (data) => {
     state.user = await api('/api/auth/login', { method: 'POST', body: data });
     $('#dialog').close();

@@ -611,3 +611,31 @@ form[aria-busy='true'] select {
   color: var(--primary-deep);
   margin: 0 0 20px;
 }
+
+.password-field {
+  position: relative;
+}
+.password-field input {
+  padding-right: 80px;
+}
+.password-toggle {
+  position: absolute;
+  right: 5px;
+  top: 2px;
+  bottom: 2px;
+  min-width: 64px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--primary-deep);
+  font-size: 13px;
+  font-weight: 600;
+}
+.password-toggle:hover {
+  background: #e7f4f4;
+}
+.password-field input::-ms-reveal {
+  display: none;
+}

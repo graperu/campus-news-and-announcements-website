@@ -12,13 +12,15 @@
     <title>UTH Campus — Tin tức & Kết nối</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/components.css" />
-    <script src="/app.js" defer></script>
+    <script src="/app.js" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Đến nội dung chính</a>
     <div class="utility">
       <div class="container">
-        <span>TRƯỜNG ĐẠI HỌC GIAO THÔNG VẬN TẢI TP.HCM</span
+        <span
+          ><span class="utility-full">TRƯỜNG ĐẠI HỌC GIAO THÔNG VẬN TẢI TP.HCM</span
+          ><span class="utility-short">CỘNG ĐỒNG UTH</span></span
         ><a href="https://uth.edu.vn/" target="_blank" rel="noopener">Website UTH ↗</a>
       </div>
     </div>
@@ -30,9 +32,13 @@
             src="/assets/uth-logo.png"
             alt="UTH — Trường Đại học Giao thông vận tải TP.HCM"
             width="88"
-            height="34"
-          /><span class="brand-word">campus<span>TIN TỨC & KẾT NỐI</span></span></a
-        >
+            height="34" /><img
+            class="campus-wordmark"
+            src="/assets/campus-wordmark.svg"
+            alt="campus — Tin tức và kết nối"
+            width="248"
+            height="74"
+        /></a>
         <div class="header-note">Một cộng đồng.<br /><strong>Nhiều câu chuyện.</strong></div>
         <button id="account" class="button outline">Đăng nhập <span>↗</span></button>
       </div>
@@ -68,8 +74,13 @@
       <div class="container footer-grid">
         <div>
           <a class="footer-brand" href="/" aria-label="UTH Campus trang chủ"
-            ><img src="/assets/uth-logo.png" alt="UTH" width="88" height="34" /><em>campus.</em></a
-          >
+            ><img src="/assets/uth-logo.png" alt="UTH" width="88" height="34" /><img
+              class="campus-wordmark"
+              src="/assets/campus-wordmark.svg"
+              alt="campus"
+              width="248"
+              height="74"
+          /></a>
           <p>Kết nối thông tin. Lan tỏa tri thức.</p>
         </div>
         <div>

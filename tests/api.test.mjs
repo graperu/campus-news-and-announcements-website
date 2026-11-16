@@ -150,6 +150,33 @@ test('editorial correctness, permissions, privacy and recovery', async (t) => {
       assert.equal(original[0].status, 'published');
       assert.equal(original[0].title, draft.title);
     });
+    await t.test(
+      'publication snapshots require permission and retain the original version',
+      async () => {
+        assert.equal((await call(`/api/history/${version}`)).status, 401);
+        assert.equal(
+          (await call(`/api/history/${version}`, 'GET', undefined, cookies.reader)).status,
+          403,
+        );
+        const snapshot = await call(`/api/history/${version}`, 'GET', undefined, cookies.editor);
+        assert.equal(snapshot.status, 200);
+        assert.equal(snapshot.data.title, draft.title);
+        assert.equal(snapshot.data.id, version);
+        assert.equal(snapshot.headers.get('cache-control'), 'no-store');
+        const drafts = (await call('/api/editorial', 'GET', undefined, cookies.author)).data;
+        assert.equal(
+          (
+            await call(
+              `/api/history/${drafts.find((v) => v.status === 'draft').id}`,
+              'GET',
+              undefined,
+              cookies.author,
+            )
+          ).status,
+          404,
+        );
+      },
+    );
     await t.test('invalid image and cross-origin mutations are rejected', async () => {
       const r = await fetch(base + '/api/uploads', {
         method: 'POST',

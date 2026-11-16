@@ -71,6 +71,21 @@ try {
   await login('author');
   await page.locator('#new-article').click();
   await page.getByLabel('Tiêu đề', { exact: true }).fill('Isolated browser workflow');
+  page.once('dialog', (d) => d.dismiss());
+  await page.locator('.dialog-close').click();
+  assert.ok(await page.locator('#dialog').isVisible());
+  page.once('dialog', (d) => d.accept());
+  await page.locator('.dialog-close').click();
+  assert.equal(await page.locator('#dialog').isVisible(), false);
+  await page.reload();
+  await page.locator('#new-article').waitFor();
+  await page.locator('#new-article').click();
+  assert.equal(
+    await page.getByLabel('Tiêu đề', { exact: true }).inputValue(),
+    'Isolated browser workflow',
+  );
+  assert.match(await page.locator('#draft-backup').innerText(), /khôi phục/);
+
   await page.getByLabel('Tóm tắt', { exact: true }).fill('Browser integration test only');
   await page.getByLabel('Nội dung', { exact: true }).fill('Private browser integration content.');
   let releaseSave;
@@ -133,6 +148,27 @@ try {
     await publicPage.getByText('Unpublished browser revision', { exact: true }).count(),
     0,
   );
+  await page.getByRole('button', { name: 'Gửi duyệt', exact: true }).click();
+  await page.locator('.status.submitted').waitFor();
+  await page.getByRole('button', { name: 'Duyệt', exact: true }).click();
+  await page.locator('.status.approved').waitFor();
+  await page.getByRole('button', { name: 'Xuất bản', exact: true }).click();
+  await page.locator('.status.approved').waitFor({ state: 'detached' });
+  await page.locator('[data-tab="history"]').click();
+  await page.locator('.history-table').waitFor();
+  assert.equal(await page.locator('.history-table tbody tr').count(), 2);
+  await page
+    .locator('.history-table tbody tr')
+    .filter({ hasText: 'Isolated browser workflow' })
+    .getByRole('button', { name: 'Xem phiên bản', exact: true })
+    .click();
+  await page.locator('#dialog-title').waitFor();
+  assert.equal(await page.locator('#dialog-title').innerText(), 'Isolated browser workflow');
+  assert.match(
+    await page.locator('#dialog-body .article-body').innerText(),
+    /Private browser integration content/,
+  );
+  await page.locator('.dialog-close').click();
   assert.deepEqual(errors, []);
   console.log(
     'Browser workflow passed: author drafts/submits; editor approves/publishes; public sees only published version; revision stays private. Test DB is isolated.',

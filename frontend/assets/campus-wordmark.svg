@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 74" role="img" aria-labelledby="title desc">
+ <title id="title">campus — Tin tức và kết nối</title><desc id="desc">Biểu tượng quyển sách mở và mái trường, màu xanh ngọc UTH với điểm nhấn vàng.</desc>
+ <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M5 25 23 12l18 13" stroke="#018486" stroke-width="4"/>
+  <path d="M7 32c6-2 11-1 16 3 5-4 10-5 16-3v20c-6-2-11-1-16 3-5-4-10-5-16-3Z" stroke="#018486" stroke-width="3"/>
+  <path d="M23 35v20M15 39l3 1m10 0 3-1" stroke="#018486" stroke-width="2.5"/>
+  <path d="M9 61h28" stroke="#f3c50f" stroke-width="4"/>
+ </g>
+ <text x="50" y="48" fill="#18383b" font-family="Segoe UI,Arial,sans-serif" font-size="43" font-weight="750" letter-spacing="-2">campus<tspan fill="#018486">.</tspan></text>
+ <text x="52" y="66" fill="#aa1f00" font-family="Segoe UI,Arial,sans-serif" font-size="8.5" font-weight="600" letter-spacing="1.35">TIN TỨC &amp; KẾT NỐI</text>
+</svg>

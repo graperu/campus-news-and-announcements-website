@@ -94,6 +94,7 @@ npm run test:workflow
 npm run test:browser
 npm run test:ui
 npm run test:ui:upgrade
+npm run test:ui:audit
 ```
 
 - API tests kiểm tra quyền, draft privacy, approval, retry publication, revision isolation và failure/recovery.
@@ -131,3 +132,7 @@ Nguồn thông tin: [Công đoàn UTH](https://congdoan.ut.edu.vn/) · [Cổng U
 `test:ui` kiểm tra vị trí tìm kiếm, tiêu đề mobile, tin không trùng, bài gốc/tin liên quan và logo nguồn chính thức trên dữ liệu UTH đã restore. Có thể đặt `ADMIN_LOGIN_FILE=output/admin-login.txt` để kiểm tra thêm bộ lọc và phân trang biên tập bằng tài khoản local; không đưa file này lên Git.
 
 `test:ui:upgrade` kiểm tra tải chậm, tìm kiếm liên tiếp, ảnh/tiêu đề tách biệt, thẻ tin, focus bàn phím và reduced motion. Với `ADMIN_LOGIN_FILE`, kiểm tra thêm các cách sắp xếp và bảng lịch sử xuất bản trên dữ liệu thật. Luồng form đang lưu, hàng chờ và lịch sử cũng được kiểm tra trong `test:workflow` bằng database tạm riêng.
+
+Bản thảo đang soạn có bản lưu tạm **trong tab hiện tại**, tách theo tài khoản và phiên bản, tối đa 24 giờ. Nội dung này chưa được gửi lên máy chủ; file ảnh chưa tải lên cần chọn lại sau reload. Không dựa vào bản lưu tạm sau khi đóng tab; hãy lưu bản nháp lên máy chủ. đăng xuất xóa bản lưu của tài khoản đó. Form cảnh báo trước khi đóng/rời khi còn thay đổi chưa lưu.
+
+Trạng thái chuyên mục/tìm kiếm/phân trang và tab/bộ lọc biên tập được ghi vào URL để Back/Reload khôi phục. Tìm kiếm đầu trang luôn tìm toàn bộ tin. `test:ui:audit` đối chiếu các lỗi đã sửa; bật `ADMIN_LOGIN_FILE` để kiểm tra cả khu biên tập với dữ liệu thật.

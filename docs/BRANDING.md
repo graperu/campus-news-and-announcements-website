@@ -13,3 +13,9 @@ Bảng màu tham chiếu từ [CSS website chính thức UTH](https://ut.edu.vn/
 Các token nằm đầu `frontend/styles.css`. Favicon và `theme-color` dùng cùng màu xanh ngọc chính.
 
 Logo trên masthead dùng ảnh gốc từ [máy chủ chính thức UTH](https://ut.edu.vn/themes/ut/images/logo.png), lưu tại `frontend/assets/uth-logo.png`, giữ nguyên tỷ lệ, không vẽ lại hoặc đổi màu.
+
+## Campus wordmark
+
+`frontend/assets/campus-wordmark.svg` là dấu hiệu riêng của dự án Campus: biểu tượng sách mở/mái trường, chữ campus và điểm nhấn xanh ngọc/vàng. Đây là SVG mới, không phải bản vẽ lại logo chính thức UTH. Logo UTH nguồn gốc được giữ riêng; không phóng to ảnh raster để giả chất lượng vector. Favicon dùng cùng biểu tượng sách/mái trường.
+
+Menu đang chọn dùng chữ trắng trên nền #018486 (khoảng 4.52:1); vàng dùng cho gạch chân, thay cho chữ vàng có tương phản thấp.

@@ -127,7 +127,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.amazoncognito.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://*.amazoncognito.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
   );
   if (production) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   const send = (status, data) => {
@@ -379,6 +379,18 @@ const server = http.createServer(async (req, res) => {
           user.role === 'author' ? [user.id] : [],
         ),
       );
+    }
+    const archived = url.pathname.match(/^\/api\/history\/([^/]+)$/);
+    if (archived && req.method === 'GET') {
+      need(user, ['author', 'editor']);
+      const [version] = await db.all(
+        'SELECT v.*,a.author_id,a.author_name,a.slug,a.category_id,c.name AS category_name,p.published_at FROM publications p JOIN article_versions v ON v.id=p.version_id JOIN articles a ON a.id=p.article_id JOIN categories c ON c.id=a.category_id WHERE v.id=$1',
+        [decodeURIComponent(archived[1])],
+      );
+      if (!version) fail(404, 'Không tìm thấy phiên bản đã xuất bản');
+      if (user.role !== 'editor' && version.author_id !== user.id)
+        fail(403, 'Bạn không có quyền xem phiên bản này');
+      return send(200, version);
     }
     if (url.pathname === '/api/articles' && req.method === 'POST') {
       need(user, ['author', 'editor']);

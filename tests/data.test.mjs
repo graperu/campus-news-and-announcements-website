@@ -21,10 +21,18 @@ test('verified UTH source snapshot restores repeatably without creating accounts
     assert.equal((await db.all('SELECT COUNT(*) AS n FROM categories'))[0].n, 5);
     assert.equal((await db.all('SELECT COUNT(*) AS n FROM publications'))[0].n, 30);
     assert.equal((await db.all('SELECT COUNT(*) AS n FROM users'))[0].n, 0);
+    assert.equal((await db.all('SELECT COUNT(*) AS n FROM source_documents'))[0].n, 20);
     const snapshot = JSON.parse(await readFile('database/sources/uth.json', 'utf8'));
     for (const record of snapshot.records) {
       assert.equal(new URL(record.source_url).hostname, 'congdoan.ut.edu.vn');
       if (record.image) await access(`frontend${record.image}`);
+      const [version] = await db.all('SELECT summary,body FROM article_versions WHERE id=$1', [
+        record.version_id,
+      ]);
+      assert.ok(version.body.length > 300);
+      assert.ok(version.summary.length > 50);
+      assert.doesNotMatch(version.body, /Xem toàn bộ nội dung tại liên kết/);
+      assert.equal(version.body, record.body);
     }
   } finally {
     await db?.close();

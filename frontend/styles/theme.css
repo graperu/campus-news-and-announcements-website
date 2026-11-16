@@ -440,6 +440,45 @@ header {
   line-height: 1.95;
   color: #263f44;
 }
+.article-body h2 {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.4;
+  margin: 26px 0 18px;
+}
+.article-body p {
+  margin: 0 0 1.1em;
+}
+.source-document {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 22px;
+  margin: 26px 0;
+  background: #eef7f6;
+  border: 1px solid #cde3e1;
+  border-radius: 10px;
+}
+.source-document > div {
+  flex: 1;
+  min-width: 0;
+}
+.source-document h3 {
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+.source-document p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 0;
+}
+.source-document .button {
+  flex-shrink: 0;
+  font-size: 13px;
+}
 .workspace-tabs {
   gap: 10px;
   border-bottom: 1px solid var(--line);
@@ -862,6 +901,12 @@ footer {
     font-size: 16px;
     letter-spacing: 0;
   }
+  .news-layout .card a > p {
+    grid-column: 2;
+    margin: 2px 0 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
   .news-layout .card > .meta {
     margin-left: 116px;
     padding-top: 9px;
@@ -902,6 +947,18 @@ footer {
   .article-body {
     font-size: 16px;
     line-height: 1.9;
+  }
+  .article-body h2 {
+    font-size: 23px;
+  }
+  .source-document {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 18px;
+    gap: 16px;
+  }
+  .source-document .button {
+    width: 100%;
   }
   .article .meta {
     font-size: 12px;

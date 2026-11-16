@@ -2,7 +2,7 @@
 
 Website tin tức và biên tập nội dung cho cộng đồng **Trường Đại học Giao thông vận tải TP.HCM (UTH)**, thực hiện theo đồ án Cloud Computing.
 
-Frontend và backend chạy cùng origin, có phân quyền Reader / Author / Editor, quản lý phiên bản, duyệt/xuất bản bài và lưu lịch sử. Không tạo bài viết hoặc tài khoản demo tự động. Dữ liệu ban đầu là **30 bản ghi tin có nguồn chính thức** từ Công đoàn UTH, kèm ngày đăng, ảnh và liên kết bài gốc.
+Frontend và backend chạy cùng origin, có phân quyền Reader / Author / Editor, quản lý phiên bản, duyệt/xuất bản bài và lưu lịch sử. Không tạo bài viết hoặc tài khoản demo tự động. Dữ liệu ban đầu là **30 bài có tóm tắt riêng dựa trên nguồn chính thức** từ Công đoàn UTH, kèm ngày đăng, ảnh, liên kết bài gốc và **20 tài liệu PDF gốc**.
 
 > **Online:** [uth-campus-news.vercel.app](https://uth-campus-news.vercel.app) — bản đọc tin công khai trên Vercel, dùng PostgreSQL Neon Free và 30 tin UTH thật. Theo lựa chọn chủ dự án, đăng nhập biên tập và upload giữ Cognito/S3, chờ thiết lập AWS; các thao tác ghi trên Vercel hiện bị khóa. Bản local vẫn có đủ luồng biên tập. Terraform đã validate; nghiệm thu AWS vẫn chưa hoàn tất. Xem [triển khai Vercel](docs/VERCEL_DEPLOYMENT.md) và [ma trận nghiệm thu](docs/ACCEPTANCE.md).
 
@@ -18,7 +18,7 @@ npm start
 
 Mở **http://127.0.0.1:3000**. Dữ liệu local nằm trong `storage/data/campus.db` và bị loại khỏi Git.
 
-`data:restore` khôi phục snapshot tin thật đã kiểm chứng, chạy lại không nhân đôi bản ghi và không ghi đè phiên bản công khai hiện có. Nội dung đầy đủ của tin dẫn nguồn nằm ở bài gốc; hệ thống không giả lập rằng các tin đó được tác giả nội bộ viết.
+`data:restore` khôi phục snapshot tin thật đã kiểm chứng, chạy lại không nhân đôi bản ghi. Lệnh chỉ nâng cấp các phiên bản metadata cũ được chỉ định trong snapshot; phiên bản do biên tập viên xuất bản được giữ nguyên. Trang đọc hiển thị phần tóm tắt và nội dung chính trước ảnh, kèm liên kết PDF nếu có. Đây là các bản tóm tắt đã đối chiếu nguồn; toàn văn vẫn nằm tại website xuất bản gốc.
 
 Muốn cập nhật từ nguồn chính thức:
 
@@ -26,7 +26,7 @@ Muốn cập nhật từ nguồn chính thức:
 npm run import:uth
 ```
 
-Nếu nguồn không truy cập được, importer báo lỗi; không tự sinh dữ liệu thay thế.
+Importer đối chiếu mã băm nội dung, tiêu đề và PDF với snapshot đã duyệt. Bài mới hoặc nguồn thay đổi được báo trong `requiresContentReview`, chờ đối chiếu và bổ sung nội dung trước khi nhập; không xuất bản bài chỉ có tiêu đề/ảnh. Nếu nguồn không truy cập được, importer báo lỗi; không tự sinh dữ liệu thay thế.
 
 ## Đăng nhập và tài khoản
 
@@ -75,7 +75,7 @@ Draft → Submitted → Approved → Published
 ├── api/                   # Adapter nhỏ cho Vercel Functions
 ├── database/
 │   ├── migrations/        # Schema, khóa ngoại và index
-│   └── sources/           # Snapshot metadata tin thật có provenance
+│   └── sources/           # Tóm tắt tin thật và thông tin đối chiếu nguồn
 ├── config/                # Mẫu biến môi trường và cấu hình Prettier
 ├── infra/
 │   ├── aws/               # Terraform, provider lock và RDS CA
@@ -115,6 +115,7 @@ npm run test:ui
 npm run test:ui:upgrade
 npm run test:ui:audit
 npm run test:ui:motion
+npm run test:news
 ```
 
 - API tests kiểm tra quyền, draft privacy, approval, retry publication, revision isolation và failure/recovery.

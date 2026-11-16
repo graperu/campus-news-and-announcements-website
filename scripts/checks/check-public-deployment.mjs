@@ -21,6 +21,8 @@ for (const item of articles) {
   assert.equal(new URL(item.source_url).hostname, 'congdoan.ut.edu.vn');
   const source = snapshot.records.find((record) => record.id === item.id);
   assert.equal(item.title, source.title);
+  assert.equal(item.body, source.body);
+  assert.ok(item.body.length > 300, 'Published source articles need actual reviewed content');
 }
 for (const path of [
   '/api/auth/login',

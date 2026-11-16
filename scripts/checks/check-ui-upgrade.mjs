@@ -48,10 +48,11 @@ try {
       heading.x >= image.x + image.width - 1 || heading.y >= image.y + image.height - 1,
       'Headline must not overlay the image',
     );
-    assert.equal(
-      await page.locator('.news-layout .card>p').count(),
-      0,
-      'Sourced cards should not repeat a generic source summary',
+    const summaries = await page.locator('.news-layout .card p').allTextContents();
+    assert.equal(summaries.length, 8);
+    assert.ok(
+      summaries.every((text) => text.length > 50 && !text.startsWith('Tin từ Công đoàn')),
+      'Cards need real, article-specific summaries',
     );
     assert.ok(
       await page

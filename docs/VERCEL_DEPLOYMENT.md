@@ -2,7 +2,7 @@
 
 Đích triển khai là project `uth-campus-news` trong tài khoản Vercel `graperu`. Đây là một bản triển khai riêng; đề gốc vẫn yêu cầu hạ tầng trên AWS, Azure hoặc GCP. Không dùng kết quả Vercel để đánh dấu hoàn tất các tiêu chí VPC, ALB, IAM, Cognito hay CloudWatch.
 
-URL production: **https://uth-campus-news.vercel.app**. PostgreSQL Neon Free được tạo riêng ở Singapore, tên `uth-campus-db`; production API chạy ở region `sin1`. Đã restore 30 tin thật; tài khoản quản trị local không được đưa lên cloud.
+URL production: **https://uth-campus-news.vercel.app**. PostgreSQL Neon Free được tạo riêng ở Singapore, tên `uth-campus-db`; production API chạy ở region `sin1`. Đã restore 30 tin thật với tóm tắt đã đối chiếu nguồn và 20 liên kết PDF gốc; tài khoản quản trị local không được đưa lên cloud.
 
 ## Thành phần
 
@@ -49,6 +49,7 @@ Nguồn kỹ thuật: [Node.js Functions](https://vercel.com/docs/functions/runt
 ```powershell
 $env:TEST_BASE_URL='https://uth-campus-news.vercel.app'
 npm run test:deployment
+npm run test:news
 npm run test:browser
 ```
 

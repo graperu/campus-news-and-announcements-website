@@ -24,7 +24,8 @@
     "test:ui:upgrade": "node scripts/checks/check-ui-upgrade.mjs",
     "test:ui:audit": "node scripts/checks/check-ui-audit-fixes.mjs",
     "test:ui:motion": "node scripts/checks/check-ui-motion.mjs",
-    "test:deployment": "node scripts/checks/check-public-deployment.mjs"
+    "test:deployment": "node scripts/checks/check-public-deployment.mjs",
+    "test:news": "node scripts/checks/check-news-content.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1169.0",

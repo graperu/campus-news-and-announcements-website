@@ -208,7 +208,30 @@ function picture(a, cls = 'card-image') {
     : '<div class="text-visual" aria-hidden="true">UTH</div>';
 }
 function tag(a) {
-  return `<span class="tag">${esc(a.category_name)}</span>`;
+  return `<span class="tag">${esc(a.category_name)}${a.document_url ? ' · PDF' : ''}</span>`;
+}
+function articleBody(text) {
+  return String(text || '')
+    .split(/\n\s*\n/)
+    .filter((p) => p.trim())
+    .map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+function sourceDocument(a) {
+  if (!a.document_url) return '';
+  let url;
+  try {
+    url = new URL(a.document_url);
+  } catch {
+    return '';
+  }
+  if (
+    url.protocol !== 'https:' ||
+    url.hostname !== 'congdoan.ut.edu.vn' ||
+    !url.pathname.toLowerCase().endsWith('.pdf')
+  )
+    return '';
+  return `<aside class="source-document" aria-label="Tài liệu đính kèm"><div><span class="eyebrow">TÀI LIỆU GỐC · PDF</span><h3>${esc(a.document_title || a.title)}</h3><p>Tài liệu do Công đoàn UTH công bố. Mở bản gốc để đọc đầy đủ các trang và hình minh họa.</p></div><a class="button outline" href="${esc(url.href)}" target="_blank" rel="noopener">Mở tài liệu PDF ↗</a></aside>`;
 }
 function meta(a) {
   return `<div class="meta"><span>${esc(a.author_name)}</span><span aria-hidden="true">·</span><time datetime="${esc(a.published_at)}">${date(a.published_at)}</time></div>`;
@@ -217,7 +240,7 @@ function href(a) {
   return `/article/${encodeURIComponent(a.slug)}`;
 }
 function card(a) {
-  return `<article class="card"><a data-route href="${href(a)}">${picture(a)}${tag(a)}<h3>${esc(a.title)}</h3><span class="card-readmore" aria-hidden="true">Đọc tin <span>↗</span></span></a>${a.source_url ? '' : `<p>${esc(a.summary)}</p>`}${meta(a)}</article>`;
+  return `<article class="card"><a data-route href="${href(a)}" aria-label="Đọc ${esc(a.title)}">${picture(a)}${tag(a)}<h3>${esc(a.title)}</h3>${a.summary ? `<p>${esc(a.summary)}</p>` : ''}<span class="card-readmore" aria-hidden="true">${a.document_url ? 'Xem tài liệu' : 'Đọc tin'} <span>↗</span></span></a>${meta(a)}</article>`;
 }
 function syncNavigation() {
   const nav = $('#category-nav'),
@@ -382,8 +405,12 @@ async function article(slug) {
   if (generation !== viewGeneration) return;
   document.title = `${a.title} — UTH Campus`;
   const sourced = !!a.source_url;
+  const body = `<div class="article-body">${sourced ? '<h2>Nội dung chính</h2>' : ''}${articleBody(a.body)}</div>`;
+  const image = a.image
+    ? `<img class="article-hero" src="${esc(a.image)}" alt="Ảnh bài viết: ${esc(a.title)}">`
+    : '';
   $('#content').innerHTML =
-    `<div class="breadcrumb"><a data-route href="/">Trang chủ</a> / ${esc(a.category_name)}</div><div class="article-layout"><article class="article">${tag(a)}<h1>${esc(a.title)}</h1>${meta(a)}${sourced ? `<div class="source-link source-top"><div><strong>Nguồn: ${esc(a.author_name)}</strong><p>Tin dẫn nguồn · Đọc nội dung đầy đủ tại website xuất bản.</p></div><a class="button" href="${esc(a.source_url)}" target="_blank" rel="noopener">Đọc bài gốc ↗</a></div>` : ''}${!sourced ? `<p class="summary">${esc(a.summary)}</p>` : ''}${a.image ? `<img class="article-hero" src="${esc(a.image)}" alt="Ảnh bài viết: ${esc(a.title)}">` : ''}${a.author_id?.startsWith('official-source:') ? '' : `<div class="article-body">${esc(a.body)}</div>`}<p class="article-updated">Cập nhật ${date(a.updated_at)}</p></article>${related.length ? `<aside class="related" aria-label="Tin đọc thêm"><div class="section-title"><h2>Đọc thêm cùng UTH</h2><a data-route href="/">Tất cả tin tức ↗</a></div><div class="related-grid">${related.map(card).join('')}</div></aside>` : ''}</div>`;
+    `<div class="breadcrumb"><a data-route href="/">Trang chủ</a> / ${esc(a.category_name)}</div><div class="article-layout"><article class="article">${tag(a)}<h1>${esc(a.title)}</h1>${meta(a)}<p class="summary">${esc(a.summary)}</p>${sourced ? `<div class="source-link source-top"><div><strong>Nguồn: ${esc(a.author_name)}</strong><p>Phần dưới tóm tắt nội dung từ nguồn chính thức. Toàn văn và ảnh tư liệu tại bài gốc.</p></div><a class="button" href="${esc(a.source_url)}" target="_blank" rel="noopener">Đọc bài gốc ↗</a></div>` : ''}${sourced ? body + sourceDocument(a) + image : image + body}<p class="article-updated">Cập nhật ${date(a.updated_at)}</p></article>${related.length ? `<aside class="related" aria-label="Tin đọc thêm"><div class="section-title"><h2>Đọc thêm cùng UTH</h2><a data-route href="/">Tất cả tin tức ↗</a></div><div class="related-grid">${related.map(card).join('')}</div></aside>` : ''}</div>`;
 }
 
 async function login() {
@@ -622,7 +649,7 @@ function renderHistory(history, versions) {
                 `/api/history/${encodeURIComponent(button.dataset.historyVersion)}`,
               );
               modal(
-                `<span class="status published">Bản đã xuất bản</span><h2>${esc(item.title)}</h2><p>${esc(item.author_name)} · ${date(item.published_at)}</p><p class="summary">${esc(item.summary)}</p>${item.image ? '<img id="archive-image" class="article-hero" alt="Ảnh của phiên bản đã xuất bản">' : ''}<div class="article-body">${esc(item.body)}</div><p class="hint">Phiên bản: ${esc(item.id)}</p>`,
+                `<span class="status published">Bản đã xuất bản</span><h2>${esc(item.title)}</h2><p>${esc(item.author_name)} · ${date(item.published_at)}</p><p class="summary">${esc(item.summary)}</p>${item.image ? '<img id="archive-image" class="article-hero" alt="Ảnh của phiên bản đã xuất bản">' : ''}<div class="article-body">${articleBody(item.body)}</div>${sourceDocument(item)}<p class="hint">Phiên bản: ${esc(item.id)}</p>`,
               );
               if (item.image) {
                 const headers = {};

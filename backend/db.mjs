@@ -108,10 +108,13 @@ export async function connect() {
 
 export async function migrate(db) {
   const { readFile } = await import('node:fs/promises');
-  const sql = await readFile(
-    new URL('../database/migrations/001_initial.sql', import.meta.url),
-    'utf8',
-  );
+  const sql = (
+    await Promise.all(
+      ['001_initial.sql', '002_source_documents.sql'].map((name) =>
+        readFile(new URL(`../database/migrations/${name}`, import.meta.url), 'utf8'),
+      ),
+    )
+  ).join('\n');
   await db.transaction(async (tx) => {
     if (process.env.DATABASE_URL) await tx.all('SELECT pg_advisory_xact_lock(437021)');
     for (const statement of sql

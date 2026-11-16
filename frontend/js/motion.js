@@ -15,7 +15,7 @@ const surfaces = [
   ['community', '#content .community', 'rise'],
   [
     'article',
-    '.article>h1,.article>.tag,.article>.meta,.article>.summary,.article>.article-hero,.article>.article-body,.article>.source-link,.article>.article-updated',
+    '.article>h1,.article>.tag,.article>.meta,.article>.summary,.article>.article-hero,.article>.article-body,.article>.source-link,.article>.source-document,.article>.article-updated',
     'fade',
   ],
   [

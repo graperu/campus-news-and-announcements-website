@@ -32,6 +32,8 @@ Local dùng cookie session HttpOnly, SameSite=Lax; tài khoản do quản trị 
 
 Body tạo/sửa bài: `title` (1–180), `summary` (1–500), `body` (1–50.000), `category_id`, `image` (đường dẫn ảnh đã upload hoặc rỗng). Danh mục của bài đã tạo được giữ nguyên khi sửa phiên bản.
 
+Response bài công khai trả `summary`, `body` của phiên bản đã xuất bản và các trường `document_url`, `document_title` (null nếu không có tài liệu nguồn). Nội dung nguồn UTH là bản tóm tắt đã đối chiếu; `source_url` trỏ tới toàn văn. Liên kết PDF gắn với phiên bản, không nhúng HTML từ website ngoài.
+
 Response lỗi quyền: `401` chưa đăng nhập, `403` thiếu quyền, `409` xung đột trạng thái hoặc dữ liệu đã tồn tại, `413` quá giới hạn upload, `429` quá nhiều lần đăng nhập.
 
 `GET /api/history/:versionId`: author xem bản đã xuất bản của bài mình, editor xem mọi bản đã xuất bản; reader/anonymous bị chặn. Trả snapshot chính xác của version, luôn `no-store`; không công khai bản nháp.

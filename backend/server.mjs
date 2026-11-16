@@ -44,7 +44,7 @@ if (production && !publicReadOnly) {
   jwtVerify = jose.jwtVerify;
   jwks = jose.createRemoteJWKSet(new URL(`${process.env.COGNITO_ISSUER}/.well-known/jwks.json`));
 }
-const pubQuery = `SELECT a.id,a.slug,a.author_id,a.author_name,a.category_id,a.source_url,v.id AS version_id,v.title,v.summary,v.body,v.image,v.updated_at,c.name AS category_name,c.color,p.published_at FROM articles a JOIN article_versions v ON v.id=a.published_version JOIN categories c ON c.id=a.category_id JOIN publications p ON p.version_id=v.id`;
+const pubQuery = `SELECT a.id,a.slug,a.author_id,a.author_name,a.category_id,a.source_url,v.id AS version_id,v.title,v.summary,v.body,v.image,v.updated_at,c.name AS category_name,c.color,p.published_at,d.url AS document_url,d.title AS document_title FROM articles a JOIN article_versions v ON v.id=a.published_version JOIN categories c ON c.id=a.category_id JOIN publications p ON p.version_id=v.id LEFT JOIN source_documents d ON d.version_id=v.id`;
 function fail(code, message) {
   throw Object.assign(new Error(message), { status: code });
 }
@@ -396,7 +396,7 @@ export async function requestHandler(req, res) {
     if (archived && req.method === 'GET') {
       need(user, ['author', 'editor']);
       const [version] = await db.all(
-        'SELECT v.*,a.author_id,a.author_name,a.slug,a.category_id,c.name AS category_name,p.published_at FROM publications p JOIN article_versions v ON v.id=p.version_id JOIN articles a ON a.id=p.article_id JOIN categories c ON c.id=a.category_id WHERE v.id=$1',
+        'SELECT v.*,a.author_id,a.author_name,a.slug,a.category_id,c.name AS category_name,p.published_at,d.url AS document_url,d.title AS document_title FROM publications p JOIN article_versions v ON v.id=p.version_id JOIN articles a ON a.id=p.article_id JOIN categories c ON c.id=a.category_id LEFT JOIN source_documents d ON d.version_id=v.id WHERE v.id=$1',
         [decodeURIComponent(archived[1])],
       );
       if (!version) fail(404, 'Không tìm thấy phiên bản đã xuất bản');

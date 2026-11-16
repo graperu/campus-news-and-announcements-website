@@ -5,20 +5,28 @@ import { dirname } from 'node:path';
 export async function connect() {
   if (process.env.DATABASE_URL) {
     const { default: pg } = await import('pg');
+    const connection = new URL(process.env.DATABASE_URL);
+    // pg URL SSL options override the explicit TLS object; keep certificate verification authoritative.
+    if (process.env.DB_SSL === 'true')
+      for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert'])
+        connection.searchParams.delete(key);
     const pool = new pg.Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: 10,
+      connectionString: connection.toString(),
+      max: process.env.VERCEL === '1' ? 3 : 10,
       connectionTimeoutMillis: 5000,
-      idleTimeoutMillis: 30000,
+      idleTimeoutMillis: process.env.VERCEL === '1' ? 5000 : 30000,
       statement_timeout: 10000,
       ssl:
         process.env.DB_SSL === 'true'
           ? {
               rejectUnauthorized: true,
-              ca: (await import('node:fs')).readFileSync(
-                new URL('../infra/aws/rds-ca.pem', import.meta.url),
-                'utf8',
-              ),
+              ca:
+                process.env.VERCEL === '1'
+                  ? undefined
+                  : (await import('node:fs')).readFileSync(
+                      new URL('../infra/aws/rds-ca.pem', import.meta.url),
+                      'utf8',
+                    ),
             }
           : undefined,
     });
@@ -45,7 +53,7 @@ export async function connect() {
       },
     };
   }
-  if (process.env.NODE_ENV === 'production')
+  if (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1')
     throw new Error('DATABASE_URL is required in production');
   const file = process.env.SQLITE_PATH || 'storage/data/campus.db';
   mkdirSync(dirname(file), { recursive: true });

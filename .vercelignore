@@ -1,0 +1,10 @@
+storage/
+config/local.env
+.env*
+node_modules/
+tests/
+docs/
+.github/
+infra/aws/.terraform/
+**/*.tfstate*
+**/*.tfplan

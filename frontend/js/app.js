@@ -243,15 +243,21 @@ $('#search').onsubmit = (e) => {
   navigate(publicUrl(state));
 };
 function updateHeader() {
-  $('#account').disabled = false;
+  const authReady = state.config.authAvailable !== false;
+  $('#account').disabled = !authReady;
+  $('#account').title = authReady ? '' : 'Không gian biên tập chưa mở';
   $('#site-search').disabled = false;
   $('#search button').disabled = false;
   $('#site-search').value = state.query;
   $('#account').innerHTML =
-    `<span class="account-icon" aria-hidden="true">${state.user ? esc(state.user.name.trim().charAt(0).toLocaleUpperCase('vi')) : '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg>'}</span><span class="account-label">${state.user ? esc(state.user.name) : 'Đăng nhập'}</span><span aria-hidden="true">↗</span>`;
+    `<span class="account-icon" aria-hidden="true">${state.user ? esc(state.user.name.trim().charAt(0).toLocaleUpperCase('vi')) : '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg>'}</span><span class="account-label">${state.user ? esc(state.user.name) : authReady ? 'Đăng nhập' : 'Biên tập chưa mở'}</span><span aria-hidden="true">↗</span>`;
   $('#account').setAttribute(
     'aria-label',
-    state.user ? `Tài khoản ${state.user.name}` : 'Đăng nhập',
+    state.user
+      ? `Tài khoản ${state.user.name}`
+      : authReady
+        ? 'Đăng nhập'
+        : 'Không gian biên tập chưa mở',
   );
   $('#workspace').hidden = !['author', 'editor'].includes(state.user?.role);
   $('#categories').innerHTML = state.categories
@@ -299,7 +305,10 @@ async function home() {
   html += articles.length
     ? `<div class="news-layout"><div id="news-feed"><div class="card-grid">${items.map(card).join('')}</div>${feed.length > 8 ? `<div class="pagination"><button class="button outline small" id="prev" ${state.page === 1 ? 'disabled' : ''}>← Trước</button><span>Trang ${state.page} / ${Math.ceil(feed.length / 8)}</span><button class="button outline small" id="next" ${offset + 8 >= feed.length ? 'disabled' : ''}>Tiếp →</button></div>` : ''}</div><aside><div class="notice-board"><span class="eyebrow">CẦN BIẾT</span><h3>Bảng thông tin</h3>${(notices.length ? notices : feed.slice(0, 4)).map((a) => `<article class="notice"><time datetime="${esc(a.published_at)}">${date(a.published_at)}</time><a data-route href="${href(a)}"><h4>${esc(a.title)} ↗</h4></a></article>`).join('')}<p class="source-note">Tin dẫn nguồn được đối chiếu với cổng thông tin Công đoàn UTH. Xem bài gốc để đọc nội dung đầy đủ.</p></div></aside></div>`
     : `<div class="empty"><span class="eyebrow">UTH CAMPUS</span><h2>${filtered ? 'Chưa tìm thấy bài phù hợp' : 'Những câu chuyện đang chờ được viết.'}</h2><p>${filtered ? 'Thử từ khóa khác hoặc chọn tất cả tin tức.' : 'Chưa có bài viết được xuất bản. Ban biên tập có thể tạo bài mới hoặc nhập tin có nguồn chính thức.'}</p><button class="button outline" id="empty-action">${filtered ? 'Xem tất cả tin' : 'Vào không gian biên tập'} ↗</button></div>`;
-  html += `<section class="community"><div><span class="eyebrow">CÙNG TẠO NÊN ĐIỀU Ý NGHĨA</span><h2>Câu chuyện tiếp theo có thể là của bạn.</h2><p>Chia sẻ hoạt động, góc nhìn và những chuyển động trong cộng đồng UTH.</p></div><button class="button accent" id="contribute">Gửi một câu chuyện ↗</button></section>`;
+  html +=
+    state.config.authAvailable === false
+      ? '<section class="community"><div><span class="eyebrow">KẾT NỐI CỘNG ĐỒNG</span><h2>Cùng theo dõi nhịp sống UTH.</h2><p>Khám phá thông tin và hoạt động từ các nguồn chính thức của trường.</p></div><a class="button accent" href="https://uth.edu.vn/" target="_blank" rel="noopener">Đến cổng thông tin UTH ↗</a></section>'
+      : `<section class="community"><div><span class="eyebrow">CÙNG TẠO NÊN ĐIỀU Ý NGHĨA</span><h2>Câu chuyện tiếp theo có thể là của bạn.</h2><p>Chia sẻ hoạt động, góc nhìn và những chuyển động trong cộng đồng UTH.</p></div><button class="button accent" id="contribute">Gửi một câu chuyện ↗</button></section>`;
   if (generation !== viewGeneration) return;
   $('#content').innerHTML = html;
   syncNavigation();
@@ -311,7 +320,7 @@ async function home() {
       navigate('/');
     } else openWorkspace();
   });
-  $('#contribute').onclick = openWorkspace;
+  $('#contribute')?.addEventListener('click', openWorkspace);
 }
 function syncWorkspaceUrl() {
   if (new URLSearchParams(location.search).get('view') === 'workspace')
@@ -370,6 +379,12 @@ async function article(slug) {
 }
 
 async function login() {
+  if (state.config.authAvailable === false) {
+    modal(
+      '<span class="eyebrow">UTH CAMPUS</span><h2>Không gian biên tập chưa mở.</h2><p>Bạn vẫn có thể đọc, tìm kiếm và khám phá các tin tức công khai.</p>',
+    );
+    return;
+  }
   if (!state.config.localAuth) {
     await cognitoLogin();
     return;

@@ -11,6 +11,7 @@ Chạy mọi lệnh `npm` từ thư mục gốc của dự án.
 | Bố cục và giao diện                                | `frontend/styles/`        |
 | Logo và ảnh nguồn                                  | `frontend/assets/`        |
 | HTTP API, phân quyền                               | `backend/server.mjs`      |
+| Adapter Vercel Functions                           | `api/index.mjs`           |
 | Kết nối SQLite/PostgreSQL                          | `backend/db.mjs`          |
 | Schema, migrations và snapshot nguồn thật          | `database/`               |
 | Tạo tài khoản local                                | `scripts/users/`          |
@@ -31,6 +32,7 @@ Chạy mọi lệnh `npm` từ thư mục gốc của dự án.
 - `package.json`, `package-lock.json`: lệnh chạy và phiên bản thư viện; npm cần chúng ở gốc.
 - `.gitignore`, `.gitattributes`: quy tắc Git.
 - `.editorconfig`: thiết lập định dạng được editor tự nhận cho toàn dự án.
+- `vercel.json`, `.vercelignore`: routing/deployment và loại file riêng tư khỏi Vercel; nền tảng tự nhận các file này ở gốc.
 
 `node_modules/` do npm quản lý và tự tạo khi chạy `npm ci`; không sắp xếp thủ công bên trong.
 

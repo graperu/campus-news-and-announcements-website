@@ -11,3 +11,5 @@ Chạy lệnh ở gốc dự án; ưu tiên các lệnh npm để tự dùng đ�
 | `aws/`     | `node scripts/aws/estimate-cost.mjs`                                                                                    |
 
 Các kiểm tra UI đọc ứng dụng local đang chạy; ảnh và kết quả nằm trong `storage/reports/`. Kiểm thử dùng database tạm riêng nằm trong `tests/` và chạy bằng `npm test`, `npm run test:workflow`.
+
+`npm run test:deployment` kiểm tra bản production chỉ đọc bằng `TEST_BASE_URL`: tin UTH thật, health, assets, khóa các API ghi và bỏ qua session local. Không tạo hay sửa dữ liệu khi chạy kiểm tra này.

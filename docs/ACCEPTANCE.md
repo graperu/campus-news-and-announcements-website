@@ -2,6 +2,8 @@
 
 `Đã kiểm tra local` không đồng nghĩa đạt nghiệm thu cloud. Chủ dự án chưa có AWS; các dòng cloud cần được hoàn thành sau khi triển khai thật. Không tạo bằng chứng, số liệu hay tài khoản demo giả.
 
+Bản đọc tin công khai đã triển khai tại [uth-campus-news.vercel.app](https://uth-campus-news.vercel.app), dùng Neon Free riêng ở Singapore. Đã kiểm tra 30 tin thật, API, routing và khóa toàn bộ thao tác ghi. Chủ dự án yêu cầu giữ Cognito/S3 và chờ AWS; khu biên tập chưa được mở trên Vercel. Bản này chưa thay thế nghiệm thu AWS/Azure/GCP của đề.
+
 | Yêu cầu từ đề                                        | Phần triển khai / bằng chứng                                       | Trạng thái                                                                             |
 | ---------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | Reader, author, editor                               | API role enforcement, local users, Cognito groups                  | Đã kiểm tra API và browser local; Cognito cần AWS                                      |

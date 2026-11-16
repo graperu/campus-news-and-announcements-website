@@ -4,11 +4,11 @@ Website tin tức và biên tập nội dung cho cộng đồng **Trường Đ�
 
 Frontend và backend chạy cùng origin, có phân quyền Reader / Author / Editor, quản lý phiên bản, duyệt/xuất bản bài và lưu lịch sử. Không tạo bài viết hoặc tài khoản demo tự động. Dữ liệu ban đầu là **30 bản ghi tin có nguồn chính thức** từ Công đoàn UTH, kèm ngày đăng, ảnh và liên kết bài gốc.
 
-> **Trạng thái:** đã kiểm tra ứng dụng local bằng API và trình duyệt. Terraform đã validate. Chưa triển khai AWS vì chủ dự án chưa có tài khoản; chưa xác nhận cache/CDN, alert, rollback hay freshness trên cloud. Theo dõi chi tiết ở [ma trận nghiệm thu](docs/ACCEPTANCE.md).
+> **Online:** [uth-campus-news.vercel.app](https://uth-campus-news.vercel.app) — bản đọc tin công khai trên Vercel, dùng PostgreSQL Neon Free và 30 tin UTH thật. Theo lựa chọn chủ dự án, đăng nhập biên tập và upload giữ Cognito/S3, chờ thiết lập AWS; các thao tác ghi trên Vercel hiện bị khóa. Bản local vẫn có đủ luồng biên tập. Terraform đã validate; nghiệm thu AWS vẫn chưa hoàn tất. Xem [triển khai Vercel](docs/VERCEL_DEPLOYMENT.md) và [ma trận nghiệm thu](docs/ACCEPTANCE.md).
 
 ## Chạy local
 
-Yêu cầu **Node.js 24+**. Không cần Docker hoặc PostgreSQL để chạy local.
+Yêu cầu **Node.js 24.x**. Không cần Docker hoặc PostgreSQL để chạy local.
 
 ```powershell
 npm ci
@@ -72,6 +72,7 @@ Draft → Submitted → Approved → Published
 │   ├── styles/            # Bố cục, thành phần và giao diện UTH
 │   └── assets/            # Logo và ảnh nguồn thật
 ├── backend/               # HTTP API, DB adapter và password hashing
+├── api/                   # Adapter nhỏ cho Vercel Functions
 ├── database/
 │   ├── migrations/        # Schema, khóa ngoại và index
 │   └── sources/           # Snapshot metadata tin thật có provenance
@@ -135,17 +136,18 @@ Các lệnh trên chỉ kiểm tra cấu hình; không tạo tài nguyên. Khôn
 
 ## Tài liệu
 
-| Tài liệu                                    | Nội dung                                                |
-| ------------------------------------------- | ------------------------------------------------------- |
-| [Phân tích đề](docs/PROJECT_BRIEF.md)       | Yêu cầu, phạm vi và tỷ trọng chấm điểm                  |
-| [Bản đồ thư mục](docs/PROJECT_STRUCTURE.md) | Tìm file, cấu hình local và vị trí dữ liệu đã chuyển    |
-| [Database](database/README.md)              | Schema, ERD, transaction và nguồn dữ liệu               |
-| [API](docs/API.md)                          | Endpoint và quyền truy cập                              |
-| [Kiến trúc](docs/ARCHITECTURE.md)           | Network/trust boundaries, scaling và cache              |
-| [Triển khai AWS](docs/AWS_DEPLOYMENT.md)    | Bootstrap, Cognito và CI/CD                             |
-| [Vận hành](docs/OPERATIONS.md)              | Workload, p95, freshness, alert, failure và cleanup     |
-| [Chi phí](docs/COST.md)                     | Giá AWS truy xuất thật và giả định ngân sách            |
-| [Nghiệm thu](docs/ACCEPTANCE.md)            | Đối chiếu mọi yêu cầu bắt buộc và trạng thái bằng chứng |
+| Tài liệu                                       | Nội dung                                                |
+| ---------------------------------------------- | ------------------------------------------------------- |
+| [Phân tích đề](docs/PROJECT_BRIEF.md)          | Yêu cầu, phạm vi và tỷ trọng chấm điểm                  |
+| [Bản đồ thư mục](docs/PROJECT_STRUCTURE.md)    | Tìm file, cấu hình local và vị trí dữ liệu đã chuyển    |
+| [Database](database/README.md)                 | Schema, ERD, transaction và nguồn dữ liệu               |
+| [API](docs/API.md)                             | Endpoint và quyền truy cập                              |
+| [Kiến trúc](docs/ARCHITECTURE.md)              | Network/trust boundaries, scaling và cache              |
+| [Triển khai AWS](docs/AWS_DEPLOYMENT.md)       | Bootstrap, Cognito và CI/CD                             |
+| [Triển khai Vercel](docs/VERCEL_DEPLOYMENT.md) | Bản public, Neon Free, trạng thái Cognito/S3            |
+| [Vận hành](docs/OPERATIONS.md)                 | Workload, p95, freshness, alert, failure và cleanup     |
+| [Chi phí](docs/COST.md)                        | Giá AWS truy xuất thật và giả định ngân sách            |
+| [Nghiệm thu](docs/ACCEPTANCE.md)               | Đối chiếu mọi yêu cầu bắt buộc và trạng thái bằng chứng |
 
 Nguồn thông tin: [Công đoàn UTH](https://congdoan.ut.edu.vn/) · [Cổng UTH](https://uth.edu.vn/). Đây là dự án học tập; không phải cổng thông tin chính thức của trường.
 

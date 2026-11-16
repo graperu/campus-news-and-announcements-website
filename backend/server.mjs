@@ -8,8 +8,16 @@ import { hashPassword, verifyPassword } from './passwords.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const production = process.env.NODE_ENV === 'production';
+const publicReadOnly =
+  production && process.env.VERCEL === '1' && process.env.PUBLIC_READ_ONLY === 'true';
 if (
   production &&
+  (!process.env.APP_ORIGIN?.startsWith('https://') || process.env.DB_SSL !== 'true')
+)
+  throw new Error('Production requires HTTPS APP_ORIGIN and verified database TLS');
+if (
+  production &&
+  !publicReadOnly &&
   (!process.env.COGNITO_ISSUER ||
     !process.env.COGNITO_CLIENT_ID ||
     !process.env.COGNITO_DOMAIN ||
@@ -31,7 +39,7 @@ const attempts = new Map(),
 let originAvailable = true;
 
 let jwtVerify, jwks;
-if (production) {
+if (production && !publicReadOnly) {
   const jose = await import('jose');
   jwtVerify = jose.jwtVerify;
   jwks = jose.createRemoteJWKSet(new URL(`${process.env.COGNITO_ISSUER}/.well-known/jwks.json`));
@@ -117,7 +125,7 @@ async function audit(tx, user, action, article, id) {
     [randomUUID(), user.id, action, article, id, new Date().toISOString()],
   );
 }
-const server = http.createServer(async (req, res) => {
+export async function requestHandler(req, res) {
   const started = performance.now(),
     requestId = randomUUID();
   const url = new URL(req.url, 'http://localhost');
@@ -150,6 +158,9 @@ const server = http.createServer(async (req, res) => {
   });
   try {
     if (!['GET', 'HEAD', 'POST', 'PUT'].includes(req.method)) fail(405, 'Phương thức không hỗ trợ');
+    // Explicit public-only deployment while Cognito/S3 setup is pending; all writes fail closed.
+    if (publicReadOnly && !['GET', 'HEAD'].includes(req.method))
+      fail(503, 'Không gian biên tập chưa được kích hoạt.');
     if (['POST', 'PUT'].includes(req.method)) {
       const expected = process.env.APP_ORIGIN || `http://${req.headers.host}`;
       if (req.headers.origin && req.headers.origin !== expected)
@@ -166,6 +177,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/config')
       return send(200, {
         localAuth: !production,
+        authAvailable: !publicReadOnly,
         cognitoDomain: process.env.COGNITO_DOMAIN || '',
         clientId: process.env.COGNITO_CLIENT_ID || '',
         redirectUri: process.env.APP_ORIGIN ? `${process.env.APP_ORIGIN}/` : '',
@@ -203,7 +215,7 @@ const server = http.createServer(async (req, res) => {
       );
       return send(200, user);
     }
-    const user = await userFor(req);
+    const user = publicReadOnly ? null : await userFor(req);
     if (url.pathname === '/api/auth/me') return send(200, { user });
     if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
       const token = req.headers.cookie?.match(/campus_session=([^;]+)/)?.[1];
@@ -633,14 +645,17 @@ const server = http.createServer(async (req, res) => {
     if (!error.status && error.code !== 'ENOENT')
       console.error(JSON.stringify({ requestId, error: error.name }));
   }
-});
-server.listen(Number(process.env.PORT || 3000), process.env.HOST || '127.0.0.1', () =>
-  console.log(`Campus News: http://${process.env.HOST || '127.0.0.1'}:${server.address().port}`),
-);
-for (const signal of ['SIGINT', 'SIGTERM'])
-  process.on(signal, () =>
-    server.close(async () => {
-      await db.close();
-      process.exit(0);
-    }),
+}
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const server = http.createServer(requestHandler);
+  server.listen(Number(process.env.PORT || 3000), process.env.HOST || '127.0.0.1', () =>
+    console.log(`Campus News: http://${process.env.HOST || '127.0.0.1'}:${server.address().port}`),
   );
+  for (const signal of ['SIGINT', 'SIGTERM'])
+    process.on(signal, () =>
+      server.close(async () => {
+        await db.close();
+        process.exit(0);
+      }),
+    );
+}

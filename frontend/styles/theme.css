@@ -722,9 +722,14 @@ footer {
     box-shadow: var(--shadow-md);
   }
   .nav-wrap .nav-link:hover {
-    background: #007779;
+    background: transparent;
     text-decoration: none;
   }
+}
+.nav-wrap .nav-link:focus-visible {
+  outline-color: #fff;
+  outline-offset: -5px;
+  border-radius: 4px;
 }
 
 @media (max-width: 1099px) {

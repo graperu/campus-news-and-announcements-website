@@ -177,8 +177,11 @@ try {
   }
   const category = page.locator('[data-category="notices"]'),
     categoryNode = await category.elementHandle();
+  await category.hover();
+  await expect(category).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await category.click();
   await wait(page);
+  await expect(category).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   assert.equal(
     await categoryNode.evaluate((el) => el === document.querySelector('[data-category="notices"]')),
     true,

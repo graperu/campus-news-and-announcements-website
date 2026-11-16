@@ -145,7 +145,6 @@ dialog[data-closing],
   :is(
       .button,
       .search-submit,
-      .nav-link,
       .nav-next,
       .workspace-tabs button,
       .dialog-close,

@@ -167,6 +167,7 @@ function card(a) {
 function syncNavigation() {
   const nav = $('#category-nav'),
     more = nav.scrollWidth - nav.clientWidth > 2;
+  nav.classList.toggle('is-scrollable', more);
   $('#nav-next').hidden = !more || nav.scrollLeft >= nav.scrollWidth - nav.clientWidth - 2;
   $('#nav-hint').hidden = !more;
 }

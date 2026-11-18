@@ -12,7 +12,7 @@
     "user:create": "node --env-file-if-exists=config/local.env scripts/users/create-user.mjs",
     "import:uth": "node --env-file-if-exists=config/local.env scripts/data/import-uth.mjs",
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
-    "check": "node --check backend/server.mjs && node --check api/index.mjs && node --check frontend/js/app.js && node --check frontend/js/motion.js",
+    "check": "node --check backend/server.mjs && node --check api/index.mjs && node --check frontend/js/app.js && node --check frontend/js/ui-state.js && node --check frontend/js/motion.js",
     "data:restore": "node --env-file-if-exists=config/local.env scripts/data/restore-source.mjs",
     "test:browser": "node scripts/checks/browser-check.mjs",
     "test:cache": "node scripts/metrics/measure-cache.mjs",

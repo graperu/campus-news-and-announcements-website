@@ -37,6 +37,11 @@ test('source content upgrades keep old snapshots and never replace an editorial 
       legacy.body,
     );
     assert.equal(
+      (await db.all('SELECT status FROM article_versions WHERE id=$1', [legacy.version_id]))[0]
+        .status,
+      'superseded',
+    );
+    assert.equal(
       (await db.all('SELECT url FROM source_documents WHERE version_id=$1', [record.version_id]))[0]
         .url,
       record.source_document_url,
@@ -81,6 +86,11 @@ test('source content upgrades keep old snapshots and never replace an editorial 
       'editor-revision',
     );
     assert.equal((await db.all('SELECT COUNT(*) AS n FROM article_versions'))[0].n, 3);
+    assert.equal(
+      (await db.all('SELECT status FROM article_versions WHERE id=$1', ['editor-revision']))[0]
+        .status,
+      'published',
+    );
     assert.equal((await db.all('SELECT COUNT(*) AS n FROM users'))[0].n, 0);
   } finally {
     await db.close();

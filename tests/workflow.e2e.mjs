@@ -26,8 +26,13 @@ await db.run('INSERT INTO categories(id,name,color) VALUES($1,$2,$3)', [
   'Integration-only category',
   '#123456',
 ]);
+await db.run('INSERT INTO categories(id,name,color) VALUES($1,$2,$3)', [
+  'test-2',
+  'Second test category',
+  '#654321',
+]);
 const child = spawn(process.execPath, ['backend/server.mjs'], {
-  env: { ...process.env, PORT: '0', NODE_ENV: 'test' },
+  env: { ...process.env, PORT: '0', NODE_ENV: 'test', UPLOAD_PATH: join(temp, 'uploads') },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let browser;
@@ -69,6 +74,12 @@ try {
     await page.locator('#content .intro').waitFor();
   }
   await login('author');
+  assert.equal(await page.locator('[data-tab="manage"]').count(), 0);
+  assert.equal(await page.locator('[data-tab="ops"]').count(), 0);
+  await page.goto(`${base}/?view=workspace&tab=manage`);
+  await page.locator('#new-article').waitFor();
+  assert.equal(await page.locator('#add-category').count(), 0);
+  await page.locator('#editorial-filters').waitFor();
   await page.locator('#new-article').click();
   await page.getByLabel('Tiêu đề', { exact: true }).fill('Isolated browser workflow');
   page.once('dialog', (d) => d.dismiss());
@@ -88,7 +99,17 @@ try {
   assert.match(await page.locator('#draft-backup').innerText(), /khôi phục/);
 
   await page.getByLabel('Tóm tắt', { exact: true }).fill('Browser integration test only');
-  await page.getByLabel('Nội dung', { exact: true }).fill('Private browser integration content.');
+  await page
+    .getByLabel('Nội dung', { exact: true })
+    .fill('Private browser integration content.\n\nSecond paragraph for preview formatting.');
+  await page.locator('#image').setInputFiles({
+    name: 'pixel.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    ),
+  });
   let releaseSave;
   const saveGate = new Promise((resolve) => (releaseSave = resolve));
   await page.route('**/api/articles', async (route) => {
@@ -102,11 +123,41 @@ try {
   await page.keyboard.press('Escape');
   assert.ok(await page.locator('#dialog').isVisible());
   releaseSave();
+  await page.getByRole('button', { name: 'Sửa', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Sửa', exact: true }).click();
+  assert.equal(await page.locator('#category').isEnabled(), true);
+  await page.locator('#category').selectOption('test-2');
+  await page.waitForFunction(() => {
+    const img = document.querySelector('#editor-image-preview');
+    return !!img && img.complete && img.naturalWidth > 0;
+  });
+  await page.locator('#dialog button[type=submit]').click();
+  await page.locator('#dialog').waitFor({ state: 'hidden' });
+  await page.locator('.editorial-item .meta', { hasText: 'Second test category' }).waitFor();
+  assert.match(await page.locator('.editorial-item .meta').innerText(), /Second test category/);
+  await page.getByRole('button', { name: 'Xem', exact: true }).click();
+  await page.locator('#dialog-title').waitFor();
+  assert.equal(await page.locator('#dialog-body .article-body p').count(), 2);
+  assert.match(
+    await page.locator('#dialog-body .summary').innerText(),
+    /Browser integration test only/,
+  );
+  await page.waitForFunction(() => {
+    const img = document.querySelector('#preview-image');
+    return !!img && img.complete && img.naturalWidth > 0;
+  });
+  await page.locator('.dialog-close').click();
+  await page.locator('#dialog').waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Gửi duyệt', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Gửi duyệt', exact: true }).click();
   await page.locator('.status.submitted').waitFor();
   const anonymous = await browser.newContext(),
     publicPage = await anonymous.newPage();
+  publicPage.on('pageerror', (e) => errors.push(e.message));
+  await publicPage.goto(`${base}/article/%E0%A4%A`);
+  await publicPage.locator('#content .empty[role="alert"]').waitFor();
+  assert.equal(await publicPage.locator('#account').isEnabled(), true);
+  assert.equal(await publicPage.locator('#site-search').isEnabled(), true);
   await publicPage.goto(base);
   await publicPage.locator('.empty').waitFor();
   assert.equal(await publicPage.getByText('Isolated browser workflow', { exact: true }).count(), 0);
@@ -156,8 +207,36 @@ try {
   await page.locator('.status.submitted').waitFor();
   await page.getByRole('button', { name: 'Duyệt', exact: true }).click();
   await page.locator('.status.approved').waitFor();
+  await page.getByRole('button', { name: 'Hẹn giờ xuất bản', exact: true }).click();
+  await page.locator('#schedule-at').waitFor();
+  const future = new Date(Date.now() + 2 * 3600_000);
+  const pad = (n) => String(n).padStart(2, '0');
+  const futureLocal = `${future.getFullYear()}-${pad(future.getMonth() + 1)}-${pad(future.getDate())}T${pad(future.getHours())}:${pad(future.getMinutes())}`;
+  await page.locator('#schedule-at').fill(futureLocal);
+  await page.locator('#dialog button[type=submit]').click();
+  await page.locator('#dialog').waitFor({ state: 'hidden' });
+  await page.locator('.status.scheduled').waitFor();
+  await page.locator('.schedule-pill').waitFor();
+  await page.locator('#editorial-status').selectOption('scheduled');
+  assert.equal(await page.locator('.editorial-item').count(), 1);
+  await page.locator('#editorial-status').selectOption('');
+  await publicPage.reload();
+  assert.equal(
+    await publicPage.getByText('Unpublished browser revision', { exact: true }).count(),
+    0,
+  );
+  await page.getByRole('button', { name: 'Hủy hẹn giờ', exact: true }).click();
+  await page.locator('.status.approved').waitFor();
   await page.getByRole('button', { name: 'Xuất bản', exact: true }).click();
   await page.locator('.status.approved').waitFor({ state: 'detached' });
+  await page.locator('[data-tab="ops"]').click();
+  await page.locator('#run-scheduler').waitFor();
+  await page.locator('#run-scheduler').click();
+  await page.locator('#toast.visible').waitFor();
+  await page.locator('[data-tab="articles"]').click();
+  await page.locator('.status.published').waitFor();
+  assert.equal(await page.locator('.editorial-item').count(), 1);
+  assert.equal(await page.getByRole('button', { name: 'Tạo bản sửa', exact: true }).count(), 1);
   await page.locator('[data-tab="history"]').click();
   await page.locator('.history-table').waitFor();
   assert.equal(await page.locator('.history-table tbody tr').count(), 2);

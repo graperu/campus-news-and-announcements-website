@@ -50,16 +50,16 @@ Editor tạo cộng tác viên ở **Không gian biên tập → Quản lý**. P
 ## Luồng biên tập
 
 ```text
-Draft → Submitted → Approved → Published
-             ↓          ↓
-           Rejected / yêu cầu chỉnh sửa → Draft
+Draft → Submitted → Approved → Published (bản Published cũ → Superseded)
+             ↓          ↓   ↘
+           Rejected   Scheduled (hẹn giờ / hủy hẹn giờ → Approved; đến hạn → Published)
 ```
 
-- Reader xem, tìm kiếm và lọc tin công khai.
-- Author tạo/sửa bài của mình, tải ảnh và gửi duyệt.
-- Editor duyệt, yêu cầu sửa, xuất bản, xem lịch sử và quản lý tài khoản/danh mục.
-- Sửa phiên bản đã xuất bản tạo draft mới; bài công khai giữ nguyên đến lần publish tiếp theo.
-- API kiểm tra quyền trực tiếp. Private response trả `no-store`; chỉ API public được cấu hình shared cache.
+- Reader xem, tìm kiếm và lọc tin công khai; public read API hỗ trợ `ETag` / `If-None-Match` (`304 Not Modified`).
+- Author tạo/sửa bài của mình (bao gồm đổi danh mục trên bản nháp/cần chỉnh sửa), tải ảnh và gửi duyệt.
+- Editor duyệt, yêu cầu sửa, hẹn giờ/hủy hẹn giờ xuất bản, xuất bản ngay, chạy lịch xuất bản, xem lịch sử và quản lý tài khoản/danh mục.
+- Sửa phiên bản đã xuất bản tạo draft mới; bài công khai giữ nguyên đến lần publish tiếp theo, khi đó bản đã xuất bản trước đó chuyển sang `superseded`.
+- API kiểm tra quyền trực tiếp. Private response trả `no-store`; chỉ API public được cấu hình shared cache (`s-maxage=30, must-revalidate`).
 - Ảnh upload giới hạn PNG/JPEG/WebP 5 MB; S3 production là private.
 
 ## Cấu trúc thư mục
@@ -107,15 +107,18 @@ Khi cần tùy chỉnh port/database, sao chép `config/local.env.example` thàn
 
 ```powershell
 npm run check
+npm run format:check
 npm test
 npm run test:workflow
-# Chạy server local trước:
+# Chạy server local trước (hoặc dùng DB tạm + ADMIN_LOGIN_FILE để không chạm campus.db):
 npm run test:browser
 npm run test:ui
 npm run test:ui:upgrade
 npm run test:ui:audit
 npm run test:ui:motion
 npm run test:news
+# Chạy trên server PUBLIC_READ_ONLY (TEST_BASE_URL trỏ tới cổng public-only):
+npm run test:deployment
 ```
 
 - API tests kiểm tra quyền, draft privacy, approval, retry publication, revision isolation và failure/recovery.

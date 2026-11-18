@@ -147,5 +147,5 @@ resource "aws_iam_role_policy" "deploy" {
 
 resource "aws_iam_role_policy" "manage_users" {
   role   = aws_iam_role.app.id
-  policy = jsonencode({ Version = "2012-10-17", Statement = [{ Effect = "Allow", Action = ["cognito-idp:AdminCreateUser", "cognito-idp:AdminAddUserToGroup"], Resource = aws_cognito_user_pool.users.arn }] })
+  policy = jsonencode({ Version = "2012-10-17", Statement = [{ Effect = "Allow", Action = ["cognito-idp:AdminCreateUser", "cognito-idp:AdminAddUserToGroup", "cognito-idp:AdminGetUser"], Resource = aws_cognito_user_pool.users.arn }] })
 }

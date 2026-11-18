@@ -8,6 +8,7 @@ Thiết kế AWS dùng **PostgreSQL trên RDS**; bản Vercel hiện dùng Postg
 erDiagram
     USERS ||--o{ SESSIONS : authenticates
     CATEGORIES ||--o{ ARTICLES : categorizes
+    CATEGORIES ||--o{ ARTICLE_VERSIONS : targets
     ARTICLES ||--o{ ARTICLE_VERSIONS : has
     ARTICLES ||--o{ PUBLICATIONS : records
     ARTICLE_VERSIONS ||--o| PUBLICATIONS : publishes
@@ -43,11 +44,14 @@ erDiagram
     ARTICLE_VERSIONS {
         text id PK
         text article_id FK
+        text category_id FK
         text title
         text summary
         text body
         text image
         text status
+        text scheduled_at
+        text scheduled_by
         text created_at
         text updated_at
     }
@@ -79,11 +83,12 @@ erDiagram
 - Timestamp lưu dưới dạng chuỗi ISO 8601 UTC trong cả hai engine; giao diện hiển thị múi giờ Việt Nam.
 - `users` và `sessions` phục vụ xác thực local bằng tài khoản thật do quản trị tạo. Production xác thực Cognito, không dùng mật khẩu local.
 - `author_id`, `editor_id`, `actor_id` có thể là Cognito subject hoặc danh tính dịch vụ nhập nguồn, nên không khóa ngoại vào bảng tài khoản local.
-- `articles.published_version` là con trỏ tới phiên bản công khai; nội dung chỉnh sửa tạo một `article_versions` mới.
-- `publications.version_id` là duy nhất, ngăn tạo nhiều bản ghi khi retry xuất bản.
+- `articles.published_version` là con trỏ tới phiên bản công khai; nội dung chỉnh sửa tạo một `article_versions` mới. Khi xuất bản phiên bản mới hơn, phiên bản `published` trước đó chuyển sang `superseded` để không còn trùng trong danh sách biên tập.
+- `publications.version_id` là duy nhất, ngăn tạo nhiều bản ghi khi retry xuất bản hoặc chạy scheduler đồng thời (`ON CONFLICT DO NOTHING`).
 - `source_documents` lưu liên kết PDF gốc theo phiên bản, tách khỏi nội dung bài; migration `002_source_documents.sql` bổ sung bảng này. Xem lịch sử lấy đúng tài liệu của phiên bản đó.
+- Migration `003_editorial_upgrades.sql` mở rộng trạng thái `article_versions.status` thêm `scheduled` và `superseded`, bổ sung `category_id` theo phiên bản cùng `scheduled_at`, `scheduled_by`, chỉ mục `idx_versions_scheduled`, và chuẩn hóa các bản `published` cũ.
 - Ghi thay đổi trạng thái, publication và audit trong cùng transaction.
-- SQLite bật foreign keys và WAL; các transaction được tuần tự hóa. PostgreSQL dùng connection pool tối đa 10/process, advisory lock khi migrate và khóa hàng khi đổi trạng thái trên production.
+- SQLite bật foreign keys, WAL, `busy_timeout = 5000` và hàm `lower()` chuẩn hóa NFC tiếng Việt (`toLocaleLowerCase('vi')`); các transaction được tuần tự hóa. PostgreSQL dùng connection pool tối đa 10/process, advisory lock khi migrate và khóa hàng (`FOR UPDATE` / `SKIP LOCKED`) khi đổi trạng thái hoặc chạy scheduler trên production.
 - Index hỗ trợ lọc danh mục, tác giả, trạng thái bản thảo, lịch sử và thời hạn session.
 
 ## Nguồn dữ liệu thật

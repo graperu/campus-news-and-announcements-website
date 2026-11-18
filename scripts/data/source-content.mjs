@@ -54,8 +54,11 @@ export async function restoreReviewedSource(db, snapshot) {
         'INSERT INTO articles(id,slug,author_id,author_name,category_id,created_at,source_url) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO NOTHING',
         [a.id, a.slug, a.author_id, a.author_name, a.category_id, a.created_at, a.source_url],
       );
+      const previous = a.replaces_versions || [];
+      const willActivate =
+        !before?.published_version || previous.includes(before.published_version);
       await tx.run(
-        'INSERT INTO article_versions(id,article_id,title,summary,body,image,status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(id) DO NOTHING',
+        'INSERT INTO article_versions(id,article_id,title,summary,body,image,status,created_at,updated_at,category_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO NOTHING',
         [
           a.version_id,
           a.id,
@@ -63,9 +66,10 @@ export async function restoreReviewedSource(db, snapshot) {
           a.summary,
           a.body,
           a.image,
-          'published',
+          willActivate || before?.published_version === a.version_id ? 'published' : 'superseded',
           a.created_at,
           a.updated_at,
+          a.category_id,
         ],
       );
       if (a.source_document_url)
@@ -78,8 +82,7 @@ export async function restoreReviewedSource(db, snapshot) {
         [a.publication_id, a.id, a.version_id, a.editor_id, a.published_at],
       );
       // Upgrade only the known metadata-only versions; preserve any editorial publication.
-      const previous = a.replaces_versions || [];
-      if (!before?.published_version || previous.includes(before.published_version)) {
+      if (willActivate) {
         await tx.run(
           'UPDATE articles SET published_version=$1 WHERE id=$2 AND (published_version IS NULL' +
             (previous.length
@@ -87,6 +90,10 @@ export async function restoreReviewedSource(db, snapshot) {
               : '') +
             ')',
           [a.version_id, a.id, ...previous],
+        );
+        await tx.run(
+          "UPDATE article_versions SET status='superseded' WHERE article_id=$1 AND id!=$2 AND status='published'",
+          [a.id, a.version_id],
         );
         activated++;
       }

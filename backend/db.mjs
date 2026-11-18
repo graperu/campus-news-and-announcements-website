@@ -2,6 +2,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+const sqliteMigrateHook = Symbol('sqliteMigrateHook');
+
 export async function connect() {
   if (process.env.DATABASE_URL) {
     const { default: pg } = await import('pg');
@@ -31,6 +33,7 @@ export async function connect() {
           : undefined,
     });
     return {
+      dialect: 'postgres',
       all: async (sql, args = []) => (await pool.query(sql, args)).rows,
       run: async (sql, args = []) => pool.query(sql, args),
       close: () => pool.end(),
@@ -45,7 +48,9 @@ export async function connect() {
           await client.query('COMMIT');
           return value;
         } catch (e) {
-          await client.query('ROLLBACK');
+          try {
+            await client.query('ROLLBACK');
+          } catch {}
           throw e;
         } finally {
           client.release();
@@ -58,7 +63,10 @@ export async function connect() {
   const file = process.env.SQLITE_PATH || 'storage/data/campus.db';
   mkdirSync(dirname(file), { recursive: true });
   const sqlite = new DatabaseSync(file);
-  sqlite.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;');
+  sqlite.exec('PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;');
+  sqlite.function('lower', { deterministic: true }, (v) =>
+    v == null ? null : String(v).normalize('NFC').toLocaleLowerCase('vi'),
+  );
   const convert = (q, a) => {
     const values = [];
     return [
@@ -88,9 +96,11 @@ export async function connect() {
     return result;
   };
   return {
+    dialect: 'sqlite',
     all: (q, a) => locked(() => db.all(q, a)),
     run: (q, a) => locked(() => db.run(q, a)),
     close: () => locked(() => db.close()),
+    [sqliteMigrateHook]: (fn) => locked(() => fn(sqlite)),
     transaction: (fn) =>
       locked(async () => {
         sqlite.exec('BEGIN IMMEDIATE');
@@ -99,7 +109,9 @@ export async function connect() {
           sqlite.exec('COMMIT');
           return result;
         } catch (e) {
-          sqlite.exec('ROLLBACK');
+          try {
+            sqlite.exec('ROLLBACK');
+          } catch {}
           throw e;
         }
       }),
@@ -108,7 +120,15 @@ export async function connect() {
 
 export async function migrate(db) {
   const { readFile } = await import('node:fs/promises');
-  const sql = (
+  const dialect = db.dialect || (process.env.DATABASE_URL ? 'postgres' : 'sqlite');
+  const execSql = async (tx, raw) => {
+    for (const statement of raw
+      .split(';')
+      .map((s) => s.replace(/^\s*--.*$/gm, '').trim())
+      .filter(Boolean))
+      await tx.run(statement);
+  };
+  const baseSql = (
     await Promise.all(
       ['001_initial.sql', '002_source_documents.sql'].map((name) =>
         readFile(new URL(`../database/migrations/${name}`, import.meta.url), 'utf8'),
@@ -116,13 +136,103 @@ export async function migrate(db) {
     )
   ).join('\n');
   await db.transaction(async (tx) => {
-    if (process.env.DATABASE_URL) await tx.all('SELECT pg_advisory_xact_lock(437021)');
-    for (const statement of sql
-      .split(';')
-      .map((s) => s.trim())
-      .filter(Boolean))
-      await tx.run(statement);
-    if (process.env.DATABASE_URL) {
+    if (dialect === 'postgres') await tx.all('SELECT pg_advisory_xact_lock(437021)');
+    await execSql(tx, baseSql);
+  });
+  if (dialect === 'sqlite' && db[sqliteMigrateHook]) {
+    await db[sqliteMigrateHook]((sqlite) => {
+      const row = sqlite
+        .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='article_versions'")
+        .get();
+      const cols = new Set(
+        sqlite
+          .prepare('PRAGMA table_info(article_versions)')
+          .all()
+          .map((c) => c.name),
+      );
+      const needsUpgrade =
+        !row?.sql?.includes("'scheduled'") ||
+        !row?.sql?.includes("'superseded'") ||
+        !cols.has('category_id') ||
+        !cols.has('scheduled_at') ||
+        !cols.has('scheduled_by');
+      if (!needsUpgrade) return;
+      const catExpr = cols.has('category_id')
+        ? 'COALESCE(v.category_id, (SELECT a.category_id FROM articles a WHERE a.id=v.article_id))'
+        : '(SELECT a.category_id FROM articles a WHERE a.id=v.article_id)';
+      const schedAtExpr = cols.has('scheduled_at') ? 'v.scheduled_at' : 'NULL';
+      const schedByExpr = cols.has('scheduled_by') ? 'v.scheduled_by' : 'NULL';
+      sqlite.exec('PRAGMA foreign_keys=OFF;');
+      try {
+        sqlite.exec('BEGIN IMMEDIATE;');
+        sqlite.exec(`
+          CREATE TABLE article_versions_new (
+            id TEXT PRIMARY KEY,
+            article_id TEXT NOT NULL REFERENCES articles(id),
+            title TEXT NOT NULL,
+            summary TEXT NOT NULL,
+            body TEXT NOT NULL,
+            image TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('draft','submitted','approved','scheduled','published','rejected','superseded')),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            category_id TEXT REFERENCES categories(id),
+            scheduled_at TEXT,
+            scheduled_by TEXT
+          );
+          INSERT INTO article_versions_new(id,article_id,title,summary,body,image,status,created_at,updated_at,category_id,scheduled_at,scheduled_by)
+          SELECT v.id,v.article_id,v.title,v.summary,v.body,v.image,v.status,v.created_at,v.updated_at,${catExpr},${schedAtExpr},${schedByExpr}
+          FROM article_versions v;
+          DROP TABLE article_versions;
+          ALTER TABLE article_versions_new RENAME TO article_versions;
+          CREATE INDEX IF NOT EXISTS idx_versions_article ON article_versions(article_id);
+          CREATE INDEX IF NOT EXISTS idx_versions_status ON article_versions(status, updated_at);
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_versions_identity ON article_versions(id, article_id);
+          CREATE INDEX IF NOT EXISTS idx_versions_scheduled ON article_versions(status, scheduled_at);
+        `);
+        const fkErrors = sqlite.prepare('PRAGMA foreign_key_check').all();
+        if (fkErrors.length)
+          throw new Error(`Foreign key check failed after migration: ${JSON.stringify(fkErrors)}`);
+        sqlite.exec('COMMIT;');
+      } catch (e) {
+        try {
+          sqlite.exec('ROLLBACK;');
+        } catch {}
+        throw e;
+      } finally {
+        sqlite.exec('PRAGMA foreign_keys=ON;');
+      }
+    });
+  }
+  const upgradeSql = await readFile(
+    new URL('../database/migrations/003_editorial_upgrades.sql', import.meta.url),
+    'utf8',
+  );
+  await db.transaction(async (tx) => {
+    if (dialect === 'postgres') {
+      await tx.all('SELECT pg_advisory_xact_lock(437021)');
+      await tx.run(
+        'ALTER TABLE article_versions ADD COLUMN IF NOT EXISTS category_id TEXT REFERENCES categories(id)',
+      );
+      await tx.run('ALTER TABLE article_versions ADD COLUMN IF NOT EXISTS scheduled_at TEXT');
+      await tx.run('ALTER TABLE article_versions ADD COLUMN IF NOT EXISTS scheduled_by TEXT');
+      const checks = await tx.all(
+        "SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conrelid='article_versions'::regclass AND contype='c'",
+      );
+      const hasExpandedStatus = checks.some(
+        (c) => c.def.includes("'scheduled'") && c.def.includes("'superseded'"),
+      );
+      if (!hasExpandedStatus) {
+        for (const c of checks) {
+          if (c.def.includes('status'))
+            await tx.run(
+              `ALTER TABLE article_versions DROP CONSTRAINT IF EXISTS "${c.conname.replace(/"/g, '""')}"`,
+            );
+        }
+        await tx.run(
+          "ALTER TABLE article_versions ADD CONSTRAINT article_versions_status_check CHECK (status IN ('draft','submitted','approved','scheduled','published','rejected','superseded'))",
+        );
+      }
       const constraints = await tx.all(
         "SELECT conname FROM pg_constraint WHERE conrelid IN ('articles'::regclass,'publications'::regclass)",
       );
@@ -135,5 +245,6 @@ export async function migrate(db) {
           'ALTER TABLE publications ADD CONSTRAINT fk_publication_article_version FOREIGN KEY(version_id,article_id) REFERENCES article_versions(id,article_id) DEFERRABLE INITIALLY DEFERRED',
         );
     }
+    await execSql(tx, upgradeSql);
   });
 }

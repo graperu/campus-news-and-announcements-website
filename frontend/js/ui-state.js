@@ -9,9 +9,14 @@ export function readRouteState(search) {
       ? p.get('tab')
       : 'articles',
     editorialQuery: p.get('eq') || '',
-    editorialStatus: ['draft', 'submitted', 'approved', 'published', 'rejected'].includes(
-      p.get('status'),
-    )
+    editorialStatus: [
+      'draft',
+      'submitted',
+      'approved',
+      'scheduled',
+      'published',
+      'rejected',
+    ].includes(p.get('status'))
       ? p.get('status')
       : '',
     editorialCategory: p.get('ec') || '',

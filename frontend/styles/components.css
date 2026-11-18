@@ -360,19 +360,19 @@ form[aria-busy='true'] select {
   border-bottom: 0;
 }
 .history-table th:first-child {
-  width: 36%;
+  width: 34%;
 }
 .history-table th:nth-child(2) {
-  width: 15%;
+  width: 14%;
 }
 .history-table th:nth-child(3) {
   width: 19%;
 }
 .history-table th:nth-child(4) {
-  width: 17%;
+  width: 16%;
 }
 .history-table th:last-child {
-  width: 13%;
+  width: 17%;
 }
 .history-table code {
   font-size: 12px;
@@ -388,17 +388,10 @@ form[aria-busy='true'] select {
 }
 
 /* Visible keyboard feedback and restrained pointer interactions. */
-:where(button, a, input, select, textarea):focus-visible {
-  outline: 3px solid var(--secondary);
-  outline-offset: 3px;
-}
 .workspace-tabs button[aria-pressed='true'] {
   background: var(--primary);
   color: white;
   border-color: var(--primary);
-}
-.nav-wrap .nav-link[aria-pressed='true'] {
-  color: var(--accent);
 }
 @media (hover: hover) {
   .button:not(:disabled):hover {
@@ -497,6 +490,30 @@ form[aria-busy='true'] select {
   .editorial-filters > .button {
     grid-column: auto;
   }
+}
+@media (max-width: 420px) {
+  .editorial-filters {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 1050px) {
+  .history-table th:first-child {
+    width: 31%;
+  }
+  .history-table th:nth-child(2) {
+    width: 13%;
+  }
+  .history-table th:nth-child(3) {
+    width: 18%;
+  }
+  .history-table th:nth-child(4) {
+    width: 15%;
+  }
+  .history-table th:last-child {
+    width: 23%;
+  }
+}
+@media (max-width: 760px) {
   .history-toolbar {
     align-items: flex-start;
     flex-direction: column;

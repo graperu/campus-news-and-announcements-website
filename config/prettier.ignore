@@ -1,0 +1,6 @@
+node_modules/
+storage/*
+!storage/README.md
+infra/aws/.terraform/
+frontend/assets/
+package-lock.json

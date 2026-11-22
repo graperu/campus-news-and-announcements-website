@@ -1,0 +1,5 @@
+region = "ap-southeast-2"
+image_tag = "YOUR_COMMIT_SHA"
+alert_email = "YOUR_REAL_EMAIL"
+desired_count = 1
+budget_usd = 100

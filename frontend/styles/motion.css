@@ -1,0 +1,211 @@
+/* Shared motion for all views. Every enhancement is optional; no hidden reveal state. */
+.details-body {
+  display: flow-root;
+  min-width: 0;
+}
+dialog[data-closing],
+#back-to-top[data-leaving] {
+  pointer-events: none;
+}
+.nav-wrap .nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: center;
+  border-radius: 3px 3px 0 0;
+}
+.nav-wrap .nav-link.active::after,
+.nav-wrap .nav-link[aria-pressed='true']::after {
+  transform: scaleX(1);
+}
+.workspace-overview > summary,
+.filter-panel > summary {
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    --motion-fast: 160ms;
+    --motion-standard: 220ms;
+  }
+  :is(
+    .button,
+    .search-submit,
+    .nav-link,
+    .nav-next,
+    .workspace-tabs button,
+    .dialog-close,
+    .password-toggle,
+    summary,
+    #back-to-top
+  ) {
+    transition:
+      color var(--motion-fast) var(--ease),
+      background-color var(--motion-fast) var(--ease),
+      border-color var(--motion-fast) var(--ease),
+      box-shadow var(--motion-standard) var(--ease),
+      opacity var(--motion-fast) var(--ease),
+      transform var(--motion-fast) var(--ease);
+  }
+  :is(input, select, textarea, .search) {
+    transition:
+      border-color var(--motion-fast) var(--ease),
+      box-shadow var(--motion-standard) var(--ease),
+      background-color var(--motion-fast) var(--ease),
+      outline-color var(--motion-fast) var(--ease);
+  }
+  :is(.card, .feature, .side-feature, .editorial-item, .notice-board, .source-top, .stat) {
+    transition:
+      transform var(--motion-standard) var(--ease),
+      box-shadow var(--motion-standard) var(--ease),
+      border-color var(--motion-standard) var(--ease),
+      background-color var(--motion-fast) var(--ease);
+  }
+  :is(
+    .history-table tr,
+    .notice a h4,
+    .card h3,
+    .feature h2,
+    .side-content h2,
+    .breadcrumb a,
+    .section-title > a,
+    .footer-grid a,
+    .utility a
+  ) {
+    transition:
+      color var(--motion-fast) var(--ease),
+      background-color var(--motion-fast) var(--ease),
+      text-decoration-color var(--motion-fast) var(--ease);
+  }
+  :is(.feature-media, .side-media, .card .card-image) {
+    transition: filter var(--motion-standard) var(--ease);
+  }
+  :is(
+    .brand .campus-wordmark,
+    .footer-brand .campus-wordmark,
+    .card-readmore span,
+    .arrow-circle,
+    .search-icon
+  ) {
+    transition:
+      transform var(--motion-standard) var(--ease),
+      background-color var(--motion-fast) var(--ease),
+      color var(--motion-fast) var(--ease);
+  }
+  .nav-wrap .nav-link::after {
+    transition:
+      transform var(--motion-standard) var(--ease),
+      opacity var(--motion-fast) var(--ease);
+  }
+  .search:focus-within .search-icon {
+    transform: scale(1.08);
+  }
+  #reading-progress span {
+    transition: transform 90ms linear;
+  }
+  dialog::backdrop {
+    animation: backdrop-enter 180ms ease-out;
+  }
+  dialog[data-closing]::backdrop {
+    animation: backdrop-leave 140ms ease-in both;
+  }
+  .skeleton {
+    animation: loading-pulse 1.3s ease-in-out infinite;
+  }
+  .button[aria-busy='true']::before {
+    animation: busy-spin 0.8s linear infinite;
+  }
+
+  @media (hover: hover) {
+    .card:hover {
+      transform: translateY(-3px);
+    }
+    :is(.button, .search-submit, .workspace-tabs button, .arrow-circle):not(:disabled):hover {
+      transform: translateY(-1px);
+    }
+    #back-to-top:hover {
+      transform: translateY(-2px);
+    }
+    :is(.brand, .footer-brand):hover .campus-wordmark {
+      transform: translateY(-1px);
+    }
+    .nav-wrap .nav-link:not(.active):hover::after {
+      transform: scaleX(0.4);
+      opacity: 0.65;
+    }
+    .card a:hover .card-readmore span {
+      transform: translateX(3px);
+    }
+  }
+  :is(
+      .button,
+      .search-submit,
+      .nav-next,
+      .workspace-tabs button,
+      .dialog-close,
+      .password-toggle,
+      #back-to-top
+    ):not(:disabled):active {
+    transform: translateY(1px);
+  }
+  @keyframes loading-pulse {
+    50% {
+      opacity: 0.5;
+    }
+  }
+  @keyframes busy-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes backdrop-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes backdrop-leave {
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+@media (hover: hover) {
+  .search-submit:hover {
+    background: #007578;
+  }
+  .nav-next:hover {
+    background: #006f72;
+  }
+  .password-toggle:hover {
+    background: #edf7f6;
+  }
+  .arrow-circle:hover {
+    background: #daefed;
+  }
+  :is(.workspace-overview, .filter-panel) > summary:hover {
+    color: var(--primary-deep);
+  }
+  :is(.footer-grid a:not(.footer-brand), .breadcrumb a, .section-title > a, .utility a):hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

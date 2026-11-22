@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#018486" />
+    <meta
+      name="description"
+      content="Không gian tin tức, thông báo và kết nối cộng đồng UTH. Theo dõi tin có nguồn và hoạt động biên tập."
+    />
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <title>UTH Campus — Tin tức & Kết nối</title>
+    <link rel="stylesheet" href="/styles/base.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+    <link rel="stylesheet" href="/styles/theme.css" />
+    <link rel="stylesheet" href="/styles/motion.css" />
+    <script src="/js/app.js" type="module"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Đến nội dung chính</a>
+    <div class="utility">
+      <div class="container">
+        <span
+          ><span class="utility-full">TRƯỜNG ĐẠI HỌC GIAO THÔNG VẬN TẢI TP.HCM</span
+          ><span class="utility-short">CỘNG ĐỒNG UTH</span></span
+        ><a href="https://uth.edu.vn/" target="_blank" rel="noopener">Website UTH ↗</a>
+      </div>
+    </div>
+    <header>
+      <div class="container masthead">
+        <a href="/" class="brand" aria-label="UTH Campus trang chủ"
+          ><img
+            class="brand-logo"
+            src="/assets/uth-logo.png"
+            alt="UTH — Trường Đại học Giao thông vận tải TP.HCM"
+            width="88"
+            height="34" /><img
+            class="campus-wordmark"
+            src="/assets/campus-wordmark.svg"
+            alt="campus — Tin tức và kết nối"
+            width="248"
+            height="74"
+        /></a>
+        <div class="header-note">Một cộng đồng.<br /><strong>Nhiều câu chuyện.</strong></div>
+        <button id="account" class="button outline">Đăng nhập <span>↗</span></button>
+      </div>
+      <div class="nav-wrap">
+        <div class="container nav-shell">
+          <nav id="category-nav" aria-label="Chuyên mục">
+            <button class="nav-link active" data-category="">Tất cả tin tức</button>
+            <div id="categories"></div>
+            <button id="workspace" class="nav-link" hidden>Không gian biên tập ↗</button>
+          </nav>
+          <button id="nav-next" class="nav-next" aria-label="Xem thêm chuyên mục" hidden>›</button>
+        </div>
+        <p id="nav-hint" class="container nav-hint" hidden>Vuốt ngang để xem thêm chuyên mục →</p>
+      </div>
+      <div class="container search-bar">
+        <form class="search" id="search" role="search">
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="m16 16 4.5 4.5" />
+          </svg>
+          <label class="sr-only" for="site-search">Tìm kiếm tin tức</label
+          ><input
+            id="site-search"
+            name="q"
+            placeholder="Tìm tin tức UTH…"
+            maxlength="100"
+            type="search"
+          /><button class="search-submit" aria-label="Tìm kiếm" type="submit">Tìm kiếm ↗</button>
+        </form>
+      </div>
+    </header>
+    <main id="main" class="container">
+      <p id="view-status" class="sr-only" role="status" aria-live="polite"></p>
+      <div id="content"><div class="loading">Đang tải tin tức…</div></div>
+    </main>
+    <footer>
+      <div class="container footer-grid">
+        <div>
+          <a class="footer-brand" href="/" aria-label="UTH Campus trang chủ"
+            ><img src="/assets/uth-logo.png" alt="UTH" width="88" height="34" /><img
+              class="campus-wordmark"
+              src="/assets/campus-wordmark.svg"
+              alt="campus"
+              width="248"
+              height="74"
+          /></a>
+          <p>Kết nối thông tin. Lan tỏa tri thức.</p>
+        </div>
+        <div>
+          <strong>Nguồn thông tin</strong
+          ><a href="https://uth.edu.vn/" target="_blank" rel="noopener">Cổng thông tin UTH ↗</a
+          ><a href="https://congdoan.ut.edu.vn/" target="_blank" rel="noopener">Công đoàn UTH ↗</a>
+        </div>
+        <div>
+          <strong>Về dự án</strong>
+          <p>Đồ án Cloud Computing.<br />Các tin dẫn nguồn giữ liên kết tới bài gốc.</p>
+        </div>
+      </div>
+      <div class="container footer-bottom">
+        <span>UTH Campus · Không gian thông tin cộng đồng</span><span>Đọc. Khám phá. Kết nối.</span>
+      </div>
+    </footer>
+    <dialog id="dialog">
+      <button class="dialog-close" aria-label="Đóng">×</button>
+      <div id="dialog-body"></div>
+    </dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div id="reading-progress" hidden aria-hidden="true"><span></span></div>
+    <button id="back-to-top" hidden aria-label="Về đầu trang" title="Về đầu trang">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m-7 7 7-7 7 7" /></svg>
+    </button>
+  </body>
+</html>

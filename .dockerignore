@@ -1,0 +1,34 @@
+﻿# Environment and secrets
+.env
+.env.*
+!.env.example
+**/local.env
+**/terraform.tfvars
+
+# Terraform state and plans
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/tfplan
+**/crash.log
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Git
+.git/
+.gitignore
+
+# Reports and temporary files
+storage/reports/
+*.log
+coverage/
+.nyc_output/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

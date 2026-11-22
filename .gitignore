@@ -1,0 +1,59 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+/config/local.env
+*.pem
+!infra/aws/rds-ca.pem
+*.key
+.aws/
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Temporary files and logs
+/tmp/
+/temp/
+*.log
+
+# Local tooling and operating system files
+.idea/
+.DS_Store
+Thumbs.db
+
+# Terraform local state and cache
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Runtime data and evidence
+storage/*
+!storage/README.md
+/data/
+/output/
+*.db
+*.db-shm
+*.db-wal
+
+*.tfvars
+!*.tfvars.example
+
+.vercel
+
+# Terraform plans and backup files
+tfplan
+*.backup
+plan-review.txt
+
+# Local test results
+api-cache-test-results.csv
+infra/aws/metric-test.json

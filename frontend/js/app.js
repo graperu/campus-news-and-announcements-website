@@ -1,0 +1,1282 @@
+import { readRouteState, publicUrl, workspaceUrl, DraftSession } from './ui-state.js';
+import {
+  refreshMotion,
+  presentDialog,
+  dismissDialog,
+  presentToast,
+  dismissToast,
+} from './motion.js';
+const $ = (s) => document.querySelector(s),
+  esc = (s) =>
+    String(s ?? '').replace(
+      /[&<>"']/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+    );
+const state = {
+  user: null,
+  config: null,
+  categories: [],
+  articles: [],
+  versions: [],
+  category: '',
+  query: '',
+  page: 1,
+  tab: 'articles',
+  editorialQuery: '',
+  editorialStatus: '',
+  editorialCategory: '',
+  editorialPage: 1,
+  editorialSort: 'updated-desc',
+  historyQuery: '',
+  historyPage: 1,
+};
+const date = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  }).format(d);
+};
+const dateTime = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  }).format(d);
+};
+const labels = {
+  draft: 'Bản nháp',
+  submitted: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+  scheduled: 'Đã hẹn giờ',
+  published: 'Đã xuất bản',
+  rejected: 'Cần chỉnh sửa',
+};
+let viewGeneration = 0,
+  viewController;
+async function api(path, options = {}) {
+  if (!options.method || options.method === 'GET') options.signal ??= viewController?.signal;
+  const headers = { 'X-Campus-Client': '1', ...options.headers };
+  const token = sessionStorage.getItem('uth_access_token');
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (options.body && !(options.body instanceof Blob)) {
+    headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(options.body);
+  }
+  const response = await fetch(path, { ...options, headers });
+  if (response.status === 401 && path !== '/api/auth/login') {
+    sessionStorage.removeItem('uth_access_token');
+    const wasLoggedIn = !!state.user;
+    if (state.user) {
+      state.user = null;
+      if (state.config) updateHeader();
+    }
+    if (
+      wasLoggedIn &&
+      new URLSearchParams(location.search).get('view') === 'workspace' &&
+      !$('#dialog').open &&
+      $('#content').getAttribute('aria-busy') !== 'true'
+    ) {
+      queueMicrotask(() => {
+        if (!state.user && new URLSearchParams(location.search).get('view') === 'workspace')
+          run(workspace);
+      });
+    }
+  }
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('Máy chủ chưa phản hồi. Vui lòng thử lại.');
+  }
+  if (!response.ok) throw new Error(data.error || `Yêu cầu thất bại (${response.status})`);
+  return data;
+}
+let toastTimer;
+function toast(message) {
+  $('#toast').textContent = message;
+  $('#toast').classList.add('visible');
+  presentToast($('#toast'));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => dismissToast($('#toast')), 4500);
+}
+let draftSession = null,
+  draftDirty = false,
+  dialogReturnFocus = null,
+  modalObjectUrl = null,
+  modalImageController = null;
+function revokeModalImage() {
+  modalImageController?.abort();
+  modalImageController = null;
+  if (modalObjectUrl) {
+    URL.revokeObjectURL(modalObjectUrl);
+    modalObjectUrl = null;
+  }
+}
+async function loadModalImage(src, selector) {
+  if (!src) return;
+  const img = $(selector);
+  if (!img) return;
+  const showFallback = () => {
+    if (img.isConnected) {
+      const note = document.createElement('p');
+      note.className = 'hint';
+      note.textContent = 'Không thể tải ảnh xem trước.';
+      img.replaceWith(note);
+    }
+  };
+  if (!src.startsWith('/media/')) {
+    img.onerror = showFallback;
+    img.src = src;
+    return;
+  }
+  modalImageController = new AbortController();
+  const { signal } = modalImageController;
+  try {
+    const headers = {};
+    const token = sessionStorage.getItem('uth_access_token');
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(src, { headers, signal });
+    if (!response.ok) throw new Error('Không thể tải ảnh');
+    const objectUrl = URL.createObjectURL(await response.blob());
+    if (signal.aborted || !$('#dialog').open || !img.isConnected) {
+      URL.revokeObjectURL(objectUrl);
+      return;
+    }
+    modalObjectUrl = objectUrl;
+    img.onerror = showFallback;
+    img.src = objectUrl;
+  } catch (error) {
+    if (error?.name === 'AbortError') return;
+    showFallback();
+  }
+}
+function modal(html) {
+  revokeModalImage();
+  draftSession = null;
+  draftDirty = false;
+  if (!$('#dialog').open) dialogReturnFocus = document.activeElement;
+  $('#dialog-body').innerHTML = html;
+  const heading = $('#dialog-body h2');
+  if (heading) {
+    heading.id = 'dialog-title';
+    heading.tabIndex = -1;
+    $('#dialog').setAttribute('aria-labelledby', 'dialog-title');
+  } else {
+    $('#dialog').removeAttribute('aria-labelledby');
+  }
+  if (!$('#dialog').open) $('#dialog').showModal();
+  (
+    $('#dialog-body input:not([type=file]), #dialog-body textarea, #dialog-body select') || heading
+  )?.focus({ preventScroll: true });
+  presentDialog($('#dialog'));
+}
+function confirmDraftLeave() {
+  return (
+    !draftDirty ||
+    confirm(
+      'Bạn có thay đổi chưa lưu lên máy chủ. Rời form? Bản lưu tạm được giữ trong tab này để bạn tiếp tục.',
+    )
+  );
+}
+async function closeDialog() {
+  if ($('#dialog form[aria-busy="true"]') || $('#dialog').dataset.closing) return;
+  if (confirmDraftLeave()) await dismissDialog($('#dialog'));
+}
+$('.dialog-close').onclick = closeDialog;
+$('#dialog').addEventListener('click', (e) => {
+  if (e.target === $('#dialog')) {
+    const r = e.target.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)
+      closeDialog();
+  }
+});
+$('#dialog').addEventListener('close', () => {
+  draftDirty = false;
+  draftSession = null;
+  revokeModalImage();
+  const target = dialogReturnFocus?.isConnected
+    ? dialogReturnFocus
+    : $('#new-article') || $('#account');
+  target?.focus({ preventScroll: true });
+});
+window.addEventListener('beforeunload', (event) => {
+  if (draftDirty) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
+});
+
+function setFormStatus(message) {
+  const status = $('#form-progress');
+  if (status) status.textContent = message;
+}
+async function busyButton(button, message, operation) {
+  if (button.disabled) return;
+  const label = button.textContent;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = message;
+  try {
+    return await operation();
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    button.textContent = label;
+  }
+}
+function bindForm(handler) {
+  const form = $('#dialog form');
+  if (!$('#form-progress'))
+    form
+      .querySelector('#form-error')
+      .insertAdjacentHTML(
+        'beforebegin',
+        '<p id="form-progress" class="form-progress" role="status" aria-live="polite"></p>',
+      );
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const button = form.querySelector('[type=submit]');
+    if (button.disabled) return;
+    const data = Object.fromEntries(new FormData(form));
+    const controls = [...form.elements],
+      previous = controls.map((x) => x.disabled);
+    const close = $('.dialog-close');
+    $('#form-error').textContent = '';
+    form.setAttribute('aria-busy', 'true');
+    close.disabled = true;
+    const message = button.textContent.includes('Đăng nhập')
+      ? 'Đang đăng nhập…'
+      : button.textContent.includes('bản nháp')
+        ? 'Đang lưu bản nháp…'
+        : 'Đang lưu…';
+    await busyButton(button, message, async () => {
+      controls.filter((x) => x !== button).forEach((x) => (x.disabled = true));
+      setFormStatus(message);
+      try {
+        await handler(data, form);
+      } catch (error) {
+        $('#form-error').textContent = error.message;
+      } finally {
+        controls
+          .filter((x) => x !== button)
+          .forEach((x) => (x.disabled = previous[controls.indexOf(x)]));
+        form.removeAttribute('aria-busy');
+        close.disabled = false;
+        setFormStatus('');
+      }
+    });
+  };
+}
+$('#dialog').addEventListener('cancel', (e) => {
+  e.preventDefault();
+  closeDialog();
+});
+
+function errorBox() {
+  return '<p id="form-error" class="error" role="alert"></p>';
+}
+function picture(a, cls = 'card-image') {
+  return a.image
+    ? `<img class="${cls}" src="${esc(a.image)}" alt="" loading="lazy">`
+    : '<div class="text-visual" aria-hidden="true">UTH</div>';
+}
+function tag(a) {
+  return `<span class="tag">${esc(a.category_name)}${a.document_url ? ' · PDF' : ''}</span>`;
+}
+function articleBody(text) {
+  return String(text || '')
+    .split(/\n\s*\n/)
+    .filter((p) => p.trim())
+    .map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
+function safeExternalUrl(raw) {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+function sourceDocument(a) {
+  if (!a.document_url) return '';
+  let url;
+  try {
+    url = new URL(a.document_url);
+  } catch {
+    return '';
+  }
+  if (
+    url.protocol !== 'https:' ||
+    url.hostname !== 'congdoan.ut.edu.vn' ||
+    !url.pathname.toLowerCase().endsWith('.pdf')
+  )
+    return '';
+  return `<aside class="source-document" aria-label="Tài liệu đính kèm"><div><span class="eyebrow">TÀI LIỆU GỐC · PDF</span><h3>${esc(a.document_title || a.title)}</h3><p>Tài liệu do Công đoàn UTH công bố. Mở bản gốc để đọc đầy đủ các trang và hình minh họa.</p></div><a class="button outline" href="${esc(url.href)}" target="_blank" rel="noopener">Mở tài liệu PDF ↗</a></aside>`;
+}
+function meta(a) {
+  return `<div class="meta"><span>${esc(a.author_name)}</span><span aria-hidden="true">·</span><time datetime="${esc(a.published_at)}">${date(a.published_at)}</time></div>`;
+}
+function href(a) {
+  return `/article/${encodeURIComponent(a.slug)}`;
+}
+function card(a) {
+  return `<article class="card"><a data-route href="${href(a)}" aria-label="Đọc ${esc(a.title)}">${picture(a)}${tag(a)}<h3>${esc(a.title)}</h3>${a.summary ? `<p>${esc(a.summary)}</p>` : ''}<span class="card-readmore" aria-hidden="true">${a.document_url ? 'Xem tài liệu' : 'Đọc tin'} <span>↗</span></span></a>${meta(a)}</article>`;
+}
+function syncNavigation() {
+  const nav = $('#category-nav'),
+    children = [...nav.children].filter((el) => el.getBoundingClientRect().width > 0);
+  const gap = Number.parseFloat(getComputedStyle(nav).columnGap) || 0;
+  const contentWidth =
+    children.reduce((sum, el) => sum + el.getBoundingClientRect().width, 0) +
+    Math.max(0, children.length - 1) * gap;
+  const more = contentWidth > nav.clientWidth + 2;
+  nav.classList.toggle('is-scrollable', more);
+  $('#nav-next').hidden = !more || nav.scrollLeft >= nav.scrollWidth - nav.clientWidth - 2;
+  $('#nav-hint').hidden = !more;
+}
+const navigationObserver = new ResizeObserver(syncNavigation);
+navigationObserver.observe($('#category-nav'));
+navigationObserver.observe($('#categories'));
+document.fonts.ready.then(syncNavigation);
+$('#category-nav').addEventListener('scroll', syncNavigation, { passive: true });
+window.addEventListener('resize', syncNavigation);
+$('#nav-next').onclick = () =>
+  $('#category-nav').scrollBy({
+    left: 220,
+    behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+  });
+$('#search').onsubmit = (e) => {
+  e.preventDefault();
+  state.query = new FormData(e.target).get('q').trim();
+  state.category = '';
+  state.page = 1;
+  navigate(publicUrl(state));
+};
+let navigationCategories;
+function updateHeader() {
+  const authReady = state.config.authAvailable !== false;
+  $('#account').disabled = !authReady;
+  $('#account').title = authReady ? '' : 'Không gian biên tập chưa mở';
+  $('#site-search').disabled = false;
+  $('#search button').disabled = false;
+  $('#site-search').value = state.query;
+  $('#account').innerHTML =
+    `<span class="account-icon" aria-hidden="true">${state.user ? esc(state.user.name.trim().charAt(0).toLocaleUpperCase('vi')) : '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg>'}</span><span class="account-label">${state.user ? esc(state.user.name) : authReady ? 'Đăng nhập' : 'Biên tập chưa mở'}</span><span aria-hidden="true">↗</span>`;
+  $('#account').setAttribute(
+    'aria-label',
+    state.user
+      ? `Tài khoản ${state.user.name}`
+      : authReady
+        ? 'Đăng nhập'
+        : 'Không gian biên tập chưa mở',
+  );
+  $('#workspace').hidden = !['author', 'editor'].includes(state.user?.role);
+  if (navigationCategories !== state.categories) {
+    navigationCategories = state.categories;
+    $('#categories').innerHTML = state.categories
+      .map((c) => `<button class="nav-link" data-category="${esc(c.id)}">${esc(c.name)}</button>`)
+      .join('');
+  }
+  document.querySelectorAll('[data-category]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.category === state.category);
+    button.setAttribute('aria-pressed', String(button.dataset.category === state.category));
+    button.onclick = () => {
+      state.category = button.dataset.category;
+      state.page = 1;
+      state.query = '';
+      navigate(publicUrl(state));
+    };
+  });
+  requestAnimationFrame(syncNavigation);
+}
+async function home() {
+  const generation = viewGeneration;
+  const params = new URLSearchParams();
+  if (state.category) params.set('category', state.category);
+  if (state.query) params.set('q', state.query);
+  const articles = await api(`/api/public/articles?${params}`);
+  state.articles = articles;
+  const filtered = state.category || state.query,
+    title = state.query
+      ? `Kết quả cho “${state.query}”`
+      : state.categories.find((c) => c.id === state.category)?.name || 'Nhịp sống UTH.';
+  let html = `<section class="intro"><div><span class="eyebrow">THE CAMPUS JOURNAL</span><h1>${esc(title)}</h1><p>Thông tin đáng tin cậy. Những kết nối có ý nghĩa.</p></div><div class="edition"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-13 4h3m2 0h3m-8 3h3"/></svg><div>HÔM NAY<strong>${date(new Date())}</strong></div></div></section>`;
+  if (!filtered && articles.length) {
+    const a = articles[0],
+      b = articles[1];
+    html += `<section class="featured-grid" aria-label="Tin nổi bật"><article class="feature"><a data-route class="feature-media" href="${href(a)}" aria-label="Đọc ${esc(a.title)}">${picture(a)}</a><div class="feature-content">${tag(a)}<a data-route href="${href(a)}"><h2>${esc(a.title)}</h2></a><div class="meta"><span>${esc(a.author_name)} · ${date(a.published_at)}</span><a data-route class="arrow-circle" href="${href(a)}" aria-label="Đọc ${esc(a.title)}">↗</a></div></div></article>${b ? `<article class="side-feature"><a data-route class="side-media" href="${href(b)}" aria-label="Đọc ${esc(b.title)}">${picture(b)}</a><div class="side-content"><div>${tag(b)}</div><a data-route href="${href(b)}"><h2>${esc(b.title)}</h2></a>${b.source_url ? '' : `<p>${esc(b.summary)}</p>`}${meta(b)}</div></article>` : ''}</section>`;
+  }
+  const feed = !filtered ? articles.slice(2) : articles;
+  state.page = Math.max(1, Math.min(state.page, Math.ceil(feed.length / 8) || 1));
+  history.replaceState(history.state, '', publicUrl(state));
+  html += `<section class="section-title" id="news-heading" tabindex="-1"><h2>${filtered ? 'Tin tức' : 'Dòng tin mới nhất'}</h2><span class="result-count">${feed.length} bài viết${filtered ? ' phù hợp' : ''}</span></section>`;
+  const offset = (state.page - 1) * 8,
+    items = feed.slice(offset, offset + 8),
+    notices = articles.filter((a) => a.category_id === 'notices').slice(0, 4);
+  html += articles.length
+    ? `<div class="news-layout"><div id="news-feed"><div class="card-grid">${items.map(card).join('')}</div>${feed.length > 8 ? `<nav class="pagination" aria-label="Phân trang tin tức"><button class="button outline small" id="prev" ${state.page === 1 ? 'disabled' : ''}>← Trước</button><span>Trang ${state.page} / ${Math.ceil(feed.length / 8)}</span><button class="button outline small" id="next" ${offset + 8 >= feed.length ? 'disabled' : ''}>Tiếp →</button></nav>` : ''}</div><aside><div class="notice-board"><span class="eyebrow">CẦN BIẾT</span><h3>Bảng thông tin</h3>${(notices.length ? notices : feed.slice(0, 4)).map((a) => `<article class="notice"><time datetime="${esc(a.published_at)}">${date(a.published_at)}</time><a data-route href="${href(a)}"><h4>${esc(a.title)} ↗</h4></a></article>`).join('')}<p class="source-note">Tin dẫn nguồn được đối chiếu với cổng thông tin Công đoàn UTH. Xem bài gốc để đọc nội dung đầy đủ.</p></div></aside></div>`
+    : `<div class="empty"><span class="eyebrow">UTH CAMPUS</span><h2>${filtered ? 'Chưa tìm thấy bài phù hợp' : 'Những câu chuyện đang chờ được viết.'}</h2><p>${filtered ? 'Thử từ khóa khác hoặc chọn tất cả tin tức.' : 'Chưa có bài viết được xuất bản. Ban biên tập có thể tạo bài mới hoặc nhập tin có nguồn chính thức.'}</p><button class="button outline" id="empty-action">${filtered ? 'Xem tất cả tin' : 'Vào không gian biên tập'} ↗</button></div>`;
+  html +=
+    state.config?.authAvailable === false
+      ? '<section class="community"><div><span class="eyebrow">KẾT NỐI CỘNG ĐỒNG</span><h2>Cùng theo dõi nhịp sống UTH.</h2><p>Khám phá thông tin và hoạt động từ các nguồn chính thức của trường.</p></div><a class="button accent" href="https://uth.edu.vn/" target="_blank" rel="noopener">Đến cổng thông tin UTH ↗</a></section>'
+      : `<section class="community"><div><span class="eyebrow">CÙNG TẠO NÊN ĐIỀU Ý NGHĨA</span><h2>Câu chuyện tiếp theo có thể là của bạn.</h2><p>Chia sẻ hoạt động, góc nhìn và những chuyển động trong cộng đồng UTH.</p></div><button class="button accent" id="contribute">Gửi một câu chuyện ↗</button></section>`;
+  if (generation !== viewGeneration) return;
+  $('#content').innerHTML = html;
+  syncNavigation();
+  bindPublicPagination();
+  $('#empty-action')?.addEventListener('click', () => {
+    if (filtered) {
+      state.query = '';
+      state.category = '';
+      navigate('/');
+    } else openWorkspace();
+  });
+  $('#contribute')?.addEventListener('click', openWorkspace);
+}
+function syncWorkspaceUrl() {
+  if (new URLSearchParams(location.search).get('view') === 'workspace')
+    history.replaceState(history.state, '', workspaceUrl(state));
+}
+function focusResults(selector) {
+  const el = $(selector);
+  if (el) {
+    el.tabIndex = -1;
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }
+}
+function bindPublicPagination() {
+  const move = (next) => {
+    history.replaceState({ ...history.state, scrollY }, '', location.href);
+    state.page = next;
+    history.pushState({ index: ++routeIndex, scrollY: 0 }, '', publicUrl(state));
+    const feed = state.category || state.query ? state.articles : state.articles.slice(2),
+      pages = Math.max(1, Math.ceil(feed.length / 8));
+    state.page = Math.max(1, Math.min(state.page, pages));
+    $('#news-feed').innerHTML = `<div class="card-grid">${feed
+      .slice((state.page - 1) * 8, state.page * 8)
+      .map(card)
+      .join(
+        '',
+      )}</div>${pages > 1 ? `<nav class="pagination" aria-label="Phân trang tin tức"><button id="prev" class="button outline small" ${state.page === 1 ? 'disabled' : ''}>← Trước</button><span>Trang ${state.page} / ${pages}</span><button id="next" class="button outline small" ${state.page === pages ? 'disabled' : ''}>Tiếp →</button></nav>` : ''}`;
+    bindPublicPagination();
+    focusResults('#news-heading');
+    history.replaceState({ ...history.state, scrollY }, '', location.href);
+    refreshMotion();
+  };
+  $('#prev')?.addEventListener('click', () => move(state.page - 1));
+  $('#next')?.addEventListener('click', () => move(state.page + 1));
+}
+
+async function article(slug) {
+  const generation = viewGeneration;
+  const a = await api(`/api/public/articles/${encodeURIComponent(slug)}`);
+  const same = await api(
+    `/api/public/articles?category=${encodeURIComponent(a.category_id)}`,
+  ).catch(() => []);
+  let related = same.filter((x) => x.id !== a.id).slice(0, 3);
+  if (generation !== viewGeneration) return;
+  if (related.length < 3) {
+    const more = await api('/api/public/articles').catch(() => []);
+    related = [
+      ...new Map([...related, ...more.filter((x) => x.id !== a.id)].map((x) => [x.id, x])).values(),
+    ].slice(0, 3);
+  }
+  if (generation !== viewGeneration) return;
+  document.title = `${a.title} — UTH Campus`;
+  const sourceHref = safeExternalUrl(a.source_url);
+  const sourced = !!sourceHref;
+  const body = `<div class="article-body">${sourced ? '<h2>Nội dung chính</h2>' : ''}${articleBody(a.body)}</div>`;
+  const image = a.image
+    ? `<img class="article-hero" src="${esc(a.image)}" alt="Ảnh bài viết: ${esc(a.title)}">`
+    : '';
+  $('#content').innerHTML =
+    `<div class="breadcrumb"><a data-route href="/">Trang chủ</a> / ${esc(a.category_name)}</div><div class="article-layout"><article class="article">${tag(a)}<h1>${esc(a.title)}</h1>${meta(a)}<p class="summary">${esc(a.summary)}</p>${sourced ? `<div class="source-link source-top"><div><strong>Nguồn: ${esc(a.author_name)}</strong><p>Phần dưới tóm tắt nội dung từ nguồn chính thức. Toàn văn và ảnh tư liệu tại bài gốc.</p></div><a class="button" href="${esc(sourceHref)}" target="_blank" rel="noopener">Đọc bài gốc ↗</a></div>` : ''}${sourced ? body + sourceDocument(a) + image : image + body}<p class="article-updated">Cập nhật ${date(a.updated_at)}</p></article>${related.length ? `<aside class="related" aria-label="Tin đọc thêm"><div class="section-title"><h2>Đọc thêm cùng UTH</h2><a data-route href="/">Tất cả tin tức ↗</a></div><div class="related-grid">${related.map(card).join('')}</div></aside>` : ''}</div>`;
+}
+
+async function login() {
+  if (!state.config) throw new Error('Chưa tải được cấu hình hệ thống. Vui lòng thử lại.');
+  if (state.config.authAvailable === false) {
+    modal(
+      '<span class="eyebrow">UTH CAMPUS</span><h2>Không gian biên tập chưa mở.</h2><p>Bạn vẫn có thể đọc, tìm kiếm và khám phá các tin tức công khai.</p>',
+    );
+    return;
+  }
+  if (!state.config.localAuth) {
+    await cognitoLogin();
+    return;
+  }
+  modal(
+    `<span class="eyebrow">KHÔNG GIAN BIÊN TẬP</span><h2>Chào mừng trở lại.</h2><p>Đăng nhập bằng tài khoản được ban biên tập cấp.</p><form><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required><label for="password">Mật khẩu</label><div class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" required><button id="toggle-password" class="password-toggle" type="button" aria-controls="password" aria-pressed="false" aria-label="Hiện mật khẩu">Hiện</button></div><p id="caps-lock" class="hint" role="status" hidden>Caps Lock đang bật.</p>${errorBox()}<div class="form-actions"><button type="submit" class="button">Đăng nhập ↗</button></div></form>`,
+  );
+  $('#toggle-password').onclick = () => {
+    const input = $('#password'),
+      show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    $('#toggle-password').textContent = show ? 'Ẩn' : 'Hiện';
+    $('#toggle-password').setAttribute('aria-pressed', String(show));
+    $('#toggle-password').setAttribute('aria-label', show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+  };
+  $('#password').addEventListener('keyup', (event) => {
+    $('#caps-lock').hidden = !event.getModifierState('CapsLock');
+  });
+  $('#password').addEventListener('input', () => {
+    $('#form-error').textContent = '';
+  });
+  bindForm(async (data) => {
+    state.user = await api('/api/auth/login', { method: 'POST', body: data });
+    await dismissDialog($('#dialog'));
+    updateHeader();
+    openWorkspace();
+  });
+}
+$('#account').onclick = () => {
+  if (!state.user) return login().catch((e) => toast(e.message));
+  modal(
+    `<h2>${esc(state.user.name)}</h2><p>Vai trò: ${esc({ reader: 'Bạn đọc', author: 'Tác giả', editor: 'Biên tập viên' }[state.user.role])}</p><div class="form-actions"><button id="change-password" class="button">Đổi mật khẩu</button><button id="logout" class="button outline">Đăng xuất</button></div>`,
+  );
+  $('#change-password').onclick = changePassword;
+  $('#logout').onclick = async () => {
+    try {
+      await busyButton($('#logout'), 'Đang đăng xuất…', async () => {
+        await api('/api/auth/logout', { method: 'POST', body: {} });
+        sessionStorage.removeItem('uth_access_token');
+        DraftSession.clearUser(state.user?.id);
+        state.user = null;
+        await dismissDialog($('#dialog'));
+        updateHeader();
+        if (!state.config.localAuth) {
+          location.assign(
+            `${state.config.cognitoDomain}/logout?${new URLSearchParams({ client_id: state.config.clientId, logout_uri: state.config.redirectUri })}`,
+          );
+          return;
+        }
+        navigate('/');
+      });
+    } catch (error) {
+      toast(error.message);
+    }
+  };
+};
+function openWorkspace() {
+  if (!state.user) {
+    login().catch((e) => toast(e.message));
+    return;
+  }
+  if (state.user.role === 'reader') {
+    toast('Tài khoản bạn đọc chưa có quyền biên tập.');
+    return;
+  }
+  navigate(workspaceUrl(state));
+}
+$('#workspace').onclick = openWorkspace;
+async function workspace() {
+  const generation = viewGeneration;
+  if (!state.user) {
+    $('#content').innerHTML =
+      '<div class="empty"><h2>Đăng nhập để biên tập</h2><p>Sử dụng tài khoản được ban biên tập cấp để tiếp tục.</p><button id="workspace-login" class="button">Đăng nhập ↗</button></div>';
+    $('#workspace-login').onclick = () => login().catch((e) => toast(e.message));
+    return login();
+  }
+  if (state.user.role === 'reader') {
+    navigate('/');
+    return;
+  }
+  let versions, history;
+  try {
+    [versions, history] = await Promise.all([api('/api/editorial'), api('/api/history')]);
+  } catch (error) {
+    if (!state.user) return workspace();
+    throw error;
+  }
+  if (generation !== viewGeneration) return;
+  if (state.user.role !== 'editor' && ['manage', 'ops'].includes(state.tab)) state.tab = 'articles';
+  state.versions = versions;
+  const distinct = new Set(versions.map((v) => v.article_id)).size;
+  const wide = matchMedia('(min-width:761px)').matches;
+  $('#content').innerHTML =
+    `<section class="intro"><div><span class="eyebrow">EDITORIAL STUDIO</span><h1>Không gian biên tập.</h1><p>Xin chào ${esc(state.user.name)}. Cùng đưa những câu chuyện đến cộng đồng.</p></div><button id="new-article" class="button">＋ Viết bài mới</button></section><details class="workspace-overview" ${wide ? 'open' : ''}><summary>Tổng quan · ${distinct} bài viết</summary><div class="stat-grid"><div class="stat"><strong>${distinct}</strong><span>Bài viết có quyền xem</span></div><div class="stat"><strong>${versions.filter((v) => v.status === 'submitted').length}</strong><span>Phiên bản chờ duyệt</span></div><div class="stat"><strong>${versions.filter((v) => v.status === 'draft').length}</strong><span>Phiên bản nháp</span></div><div class="stat"><strong>${history.length}</strong><span>Lượt xuất bản</span></div></div></details><div class="workspace-tabs"><button data-tab="articles">Bài viết & duyệt bài</button><button data-tab="history">Lịch sử xuất bản</button>${state.user.role === 'editor' ? '<button data-tab="manage">Quản lý</button><button data-tab="ops">Vận hành</button>' : ''}</div><div id="workspace-body"></div>`;
+  const queueStatuses = state.user.role === 'editor' ? ['submitted', 'approved'] : ['rejected'];
+  const queued = versions.filter((v) => queueStatuses.includes(v.status));
+  if (queued.length) {
+    $('.workspace-tabs').insertAdjacentHTML(
+      'beforebegin',
+      `<div class="review-callout"><div><strong>${queued.length} phiên bản ${state.user.role === 'editor' ? 'cần biên tập xử lý' : 'cần bạn chỉnh sửa'}</strong><p>${state.user.role === 'editor' ? 'Xem bài chờ duyệt và bài đã duyệt để tiếp tục xuất bản.' : 'Mở lại bản thảo theo phản hồi từ ban biên tập.'}</p></div><button id="open-queue" class="button outline">Xem hàng chờ ↗</button></div>`,
+    );
+    $('#open-queue').onclick = () => {
+      state.tab = 'articles';
+      state.editorialStatus = '';
+      state.editorialQuery = '';
+      state.editorialCategory = '';
+      state.editorialSort = 'priority';
+      state.editorialPage = 1;
+      run(workspace);
+    };
+  }
+  $('#new-article').onclick = () => editArticle();
+  document.querySelectorAll('[data-tab]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.tab === state.tab);
+    b.setAttribute('aria-pressed', String(b.dataset.tab === state.tab));
+    b.onclick = () => {
+      state.tab = b.dataset.tab;
+      navigate(workspaceUrl(state));
+    };
+  });
+  if (state.tab === 'history') renderHistory(history, versions);
+  else if (state.tab === 'manage' && state.user.role === 'editor') {
+    $('#workspace-body').innerHTML =
+      '<div class="editorial-list"><div class="editorial-item"><div><h3>Danh mục tin tức</h3><p class="hint">Tổ chức nội dung theo từng chủ đề.</p></div><button id="add-category" class="button outline">Thêm danh mục</button></div><div class="editorial-item"><div><h3>Tài khoản cộng tác viên</h3><p class="hint">Cấp đúng vai trò cho người tham gia biên tập.</p></div><button id="add-user" class="button outline">Thêm tài khoản</button></div></div>';
+    $('#add-category').onclick = () => {
+      if (!state.user) return login().catch((e) => toast(e.message));
+      modal(
+        `<h2>Thêm danh mục</h2><form><label>Tên danh mục<input name="name" maxlength="80" required></label>${errorBox()}<button type="submit" class="button">Lưu danh mục</button></form>`,
+      );
+      bindForm(async (data) => {
+        await api('/api/categories', { method: 'POST', body: data });
+        state.categories = await api('/api/categories');
+        updateHeader();
+        await dismissDialog($('#dialog'));
+        toast('Đã thêm danh mục');
+      });
+    };
+    $('#add-user').onclick = () => {
+      if (!state.user) return login().catch((e) => toast(e.message));
+      modal(
+        `<h2>Thêm tài khoản</h2><form><label>Họ tên<input name="name" maxlength="100" required></label><label>Email<input name="email" type="email" required></label><label>Vai trò<select name="role"><option value="author">Tác giả</option><option value="editor">Biên tập viên</option><option value="reader">Bạn đọc</option></select></label>${state.config.localAuth ? '<label>Mật khẩu<input name="password" type="password" minlength="12" maxlength="256" autocomplete="new-password" required></label>' : '<p class="hint">Lời mời đăng nhập sẽ được Cognito gửi đến email này.</p>'}${errorBox()}<button type="submit" class="button">Tạo tài khoản</button></form>`,
+      );
+      bindForm(async (data) => {
+        await api('/api/users', { method: 'POST', body: data });
+        await dismissDialog($('#dialog'));
+        toast('Đã tạo tài khoản');
+      });
+    };
+  } else if (state.tab === 'ops' && state.user.role === 'editor') {
+    const m = await api('/api/ops/metrics');
+    if (generation !== viewGeneration) return;
+    const scheduledCount = versions.filter((v) => v.status === 'scheduled').length;
+    $('#workspace-body').innerHTML =
+      `<div class="editorial-list"><div class="editorial-item"><div><h3>Origin requests: ${m.originRequests}</h3><p>Public reads: ${m.publicReads}</p><p class="hint">Bộ đếm của process hiện tại, từ ${esc(m.startedAt)}. Cache hit, p95 và freshness trên AWS được đo bằng CloudWatch và bài kiểm thử; không hiển thị số liệu giả.</p></div></div><div class="editorial-item"><div><h3>Trạng thái origin: ${m.originAvailable ? 'Đang phục vụ' : 'Đang diễn tập lỗi'}</h3><p class="hint">Diễn tập local chỉ ngắt public API, không phải sự cố toàn bộ ứng dụng.</p></div>${state.config.localAuth ? `<button class="button outline" id="origin-toggle">${m.originAvailable ? 'Tạm ngắt public origin' : 'Khôi phục origin'}</button>` : ''}</div><div class="editorial-item"><div><h3>Lịch xuất bản tự động</h3><p>Kiểm tra và xuất bản ngay các bài viết đã hẹn giờ đến hạn.</p><p class="hint">Phiên bản đang hẹn giờ: ${scheduledCount}</p></div><button class="button outline" id="run-scheduler">Chạy lịch xuất bản</button></div></div>`;
+    $('#origin-toggle')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      try {
+        await busyButton(button, 'Đang cập nhật…', async () => {
+          await api('/api/ops/origin', { method: 'POST', body: { available: !m.originAvailable } });
+        });
+        await run(workspace);
+        $('#origin-toggle')?.focus({ preventScroll: true });
+      } catch (error) {
+        toast(error.message);
+      }
+    });
+    $('#run-scheduler')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      try {
+        const result = await busyButton(button, 'Đang chạy…', () =>
+          api('/api/ops/scheduler/run', { method: 'POST', body: {} }),
+        );
+        toast(
+          result.count
+            ? `Đã xuất bản ${result.count} bài theo lịch`
+            : 'Chưa có bài đến giờ xuất bản',
+        );
+        await run(workspace);
+        $('#run-scheduler')?.focus({ preventScroll: true });
+      } catch (error) {
+        toast(error.message);
+      }
+    });
+  } else {
+    $('#workspace-body').innerHTML =
+      `<details class="filter-panel" ${wide ? 'open' : ''}><summary>Tìm kiếm &amp; bộ lọc${state.editorialQuery || state.editorialStatus || state.editorialCategory ? ' · Đang áp dụng' : ''}</summary><form id="editorial-filters" class="editorial-filters" role="search"><label for="editorial-query">Tìm bài viết<input id="editorial-query" type="search" placeholder="Tiêu đề hoặc tác giả…" value="${esc(state.editorialQuery)}"></label><label for="editorial-status">Trạng thái<select id="editorial-status"><option value="">Tất cả trạng thái</option>${Object.entries(
+        labels,
+      )
+        .map(
+          ([id, name]) =>
+            `<option value="${id}" ${state.editorialStatus === id ? 'selected' : ''}>${name}</option>`,
+        )
+        .join(
+          '',
+        )}</select></label><label for="editorial-category">Danh mục<select id="editorial-category"><option value="">Tất cả danh mục</option>${state.categories.map((c) => `<option value="${esc(c.id)}" ${state.editorialCategory === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label><label for="editorial-sort">Sắp xếp<select id="editorial-sort">${[
+        ['updated-desc', 'Cập nhật mới nhất'],
+        ['updated-asc', 'Cập nhật cũ nhất'],
+        ['priority', 'Ưu tiên cần xử lý'],
+        ['title', 'Tiêu đề A–Z'],
+      ]
+        .map(
+          ([value, name]) =>
+            `<option value="${value}" ${state.editorialSort === value ? 'selected' : ''}>${name}</option>`,
+        )
+        .join(
+          '',
+        )}</select></label><button id="clear-filters" type="button" class="button outline">Xóa bộ lọc</button></form></details><p id="editorial-count" class="result-count" aria-live="polite"></p><div id="editorial-results"></div>`;
+    $('#editorial-filters').onsubmit = (e) => e.preventDefault();
+    for (const [id, key] of [
+      ['editorial-query', 'editorialQuery'],
+      ['editorial-status', 'editorialStatus'],
+      ['editorial-category', 'editorialCategory'],
+      ['editorial-sort', 'editorialSort'],
+    ])
+      $(`#${id}`).addEventListener(id === 'editorial-query' ? 'input' : 'change', (e) => {
+        state[key] = e.target.value;
+        state.editorialPage = 1;
+        renderEditorialList(versions);
+      });
+    $('#clear-filters').onclick = () => {
+      state.editorialQuery = '';
+      state.editorialStatus = '';
+      state.editorialCategory = '';
+      state.editorialPage = 1;
+      state.editorialSort = 'updated-desc';
+      $('#editorial-sort').value = state.editorialSort;
+      $('#editorial-query').value = '';
+      $('#editorial-status').value = '';
+      $('#editorial-category').value = '';
+      renderEditorialList(versions);
+    };
+    renderEditorialList(versions);
+  }
+}
+function renderHistory(history, versions) {
+  $('#workspace-body').innerHTML =
+    `<div class="history-toolbar"><label for="history-query">Tìm trong lịch sử<input id="history-query" type="search" placeholder="Tiêu đề hoặc tác giả…" value="${esc(state.historyQuery)}"></label><p id="history-count" class="result-count" aria-live="polite"></p></div><div id="history-results"></div>`;
+  $('#history-query').oninput = (e) => {
+    state.historyQuery = e.target.value;
+    state.historyPage = 1;
+    draw();
+  };
+  function draw() {
+    const query = state.historyQuery.trim().toLocaleLowerCase('vi');
+    const rows = history
+      .filter((p) => `${p.title} ${p.author_name}`.toLocaleLowerCase('vi').includes(query))
+      .sort((a, b) => b.published_at.localeCompare(a.published_at));
+    const pages = Math.max(1, Math.ceil(rows.length / 10));
+    state.historyPage = Math.max(1, Math.min(state.historyPage, pages));
+    const slice = rows.slice((state.historyPage - 1) * 10, state.historyPage * 10);
+    syncWorkspaceUrl();
+    $('#history-count').textContent = `${rows.length} lượt xuất bản · Mới nhất trước`;
+    $('#history-results').innerHTML = rows.length
+      ? `<div class="history-table-wrap"><table class="history-table"><caption class="sr-only">Lịch sử xuất bản bài viết</caption><thead><tr><th scope="col">Bài viết</th><th scope="col">Tác giả</th><th scope="col">Xuất bản lúc</th><th scope="col">Phiên bản</th><th scope="col">Thao tác</th></tr></thead><tbody>${slice
+          .map((p) => {
+            const article = versions.find((v) => v.article_id === p.article_id);
+            return `<tr><td data-label="Bài viết"><strong>${esc(p.title)}</strong></td><td data-label="Tác giả">${esc(p.author_name)}</td><td data-label="Xuất bản lúc"><time datetime="${esc(p.published_at)}">${dateTime(p.published_at)}</time></td><td data-label="Phiên bản"><code title="${esc(p.version_id)}">${esc(p.version_id)}</code></td><td data-label="Thao tác">${article ? `<button class="button outline small" data-history-version="${esc(p.version_id)}">Xem phiên bản</button>` : '—'}</td></tr>`;
+          })
+          .join(
+            '',
+          )}</tbody></table></div>${pages > 1 ? `<nav class="pagination" aria-label="Phân trang lịch sử"><button id="history-prev" class="button outline small" ${state.historyPage === 1 ? 'disabled' : ''}>← Trước</button><span>Trang ${state.historyPage} / ${pages}</span><button id="history-next" class="button outline small" ${state.historyPage === pages ? 'disabled' : ''}>Tiếp →</button></nav>` : ''}`
+      : '<div class="empty">Chưa có lịch sử phù hợp.</div>';
+    document.querySelectorAll('[data-history-version]').forEach(
+      (button) =>
+        (button.onclick = async () => {
+          try {
+            await busyButton(button, 'Đang mở…', async () => {
+              const item = await api(
+                `/api/history/${encodeURIComponent(button.dataset.historyVersion)}`,
+              );
+              modal(
+                `<span class="status published">Bản đã xuất bản</span><h2>${esc(item.title)}</h2><p>${esc(item.author_name)} · ${date(item.published_at)}</p><p class="summary">${esc(item.summary)}</p>${item.image ? '<img id="archive-image" class="article-hero" alt="Ảnh của phiên bản đã xuất bản">' : ''}<div class="article-body">${articleBody(item.body)}</div>${sourceDocument(item)}<p class="hint">Phiên bản: ${esc(item.id)}</p>`,
+              );
+              if (item.image) await loadModalImage(item.image, '#archive-image');
+            });
+          } catch (error) {
+            toast(error.message);
+          }
+        }),
+    );
+    $('#history-prev')?.addEventListener('click', () => {
+      state.historyPage--;
+      draw();
+      focusResults('#history-count');
+    });
+    $('#history-next')?.addEventListener('click', () => {
+      state.historyPage++;
+      draw();
+      focusResults('#history-count');
+    });
+    refreshMotion();
+  }
+  draw();
+}
+
+function toLocalDatetimeInput(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function scheduleArticle(v) {
+  if (!v) return;
+  if (!state.user) return login().catch((e) => toast(e.message));
+  const defaultValue =
+    v.scheduled_at && new Date(v.scheduled_at).getTime() > Date.now()
+      ? toLocalDatetimeInput(v.scheduled_at)
+      : toLocalDatetimeInput(new Date(Date.now() + 3600_000));
+  const minValue = toLocalDatetimeInput(new Date(Date.now() + 60_000));
+  modal(
+    `<span class="eyebrow">LỊCH XUẤT BẢN</span><h2>${v.status === 'scheduled' ? 'Đổi lịch xuất bản' : 'Hẹn giờ xuất bản'}</h2><p>${esc(v.title)}</p><form><label for="schedule-at">Thời gian xuất bản (giờ địa phương)</label><input id="schedule-at" name="scheduled_at" type="datetime-local" min="${esc(minValue)}" value="${esc(defaultValue)}" required><p class="hint">Hệ thống tự động xuất bản khi đến giờ hẹn (tối đa trong tương lai).</p>${errorBox()}<div class="form-actions"><button type="submit" class="button">Xác nhận hẹn giờ ↗</button></div></form>`,
+  );
+  bindForm(async (data) => {
+    const m = String(data.scheduled_at || '').match(
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/,
+    );
+    if (!m) throw new Error('Vui lòng chọn thời gian hợp lệ.');
+    const localDate = new Date(
+      Number(m[1]),
+      Number(m[2]) - 1,
+      Number(m[3]),
+      Number(m[4]),
+      Number(m[5]),
+      Number(m[6] || 0),
+    );
+    if (Number.isNaN(localDate.getTime()) || localDate.getTime() <= Date.now())
+      throw new Error('Thời gian hẹn xuất bản phải ở tương lai.');
+    await api(`/api/versions/${encodeURIComponent(v.id)}/schedule`, {
+      method: 'POST',
+      body: { scheduled_at: localDate.toISOString() },
+    });
+    await dismissDialog($('#dialog'));
+    toast('Đã hẹn giờ xuất bản');
+    await run(workspace);
+    $(`[data-preview="${CSS.escape(v.id)}"]`)?.focus({ preventScroll: true });
+  });
+}
+
+function renderEditorialList(versions) {
+  const activeVersions = versions.filter(
+    (v) =>
+      v.status !== 'superseded' &&
+      (v.status !== 'published' || !v.published_version || v.id === v.published_version),
+  );
+  const query = state.editorialQuery.trim().toLocaleLowerCase('vi');
+  const filtered = activeVersions.filter(
+    (v) =>
+      (!state.editorialStatus || v.status === state.editorialStatus) &&
+      (!state.editorialCategory || v.category_id === state.editorialCategory) &&
+      (!query || `${v.title} ${v.author_name}`.toLocaleLowerCase('vi').includes(query)),
+  );
+  const priority = (v) =>
+    (state.user?.role === 'editor'
+      ? { submitted: 0, approved: 1, scheduled: 2, rejected: 3, draft: 4, published: 5 }[v.status]
+      : { rejected: 0, draft: 1, submitted: 2, approved: 3, scheduled: 4, published: 5 }[
+          v.status
+        ]) ?? 6;
+  filtered.sort((a, b) =>
+    state.editorialSort === 'title'
+      ? a.title.localeCompare(b.title, 'vi')
+      : state.editorialSort === 'updated-asc'
+        ? a.updated_at.localeCompare(b.updated_at)
+        : state.editorialSort === 'priority'
+          ? priority(a) - priority(b) || b.updated_at.localeCompare(a.updated_at)
+          : b.updated_at.localeCompare(a.updated_at),
+  );
+  const pages = Math.max(1, Math.ceil(filtered.length / 8));
+  state.editorialPage = Math.max(1, Math.min(state.editorialPage, pages));
+  const offset = (state.editorialPage - 1) * 8,
+    visible = filtered.slice(offset, offset + 8);
+  syncWorkspaceUrl();
+  $('#editorial-count').textContent =
+    `${filtered.length} phiên bản phù hợp · Hiển thị ${filtered.length ? offset + 1 : 0}–${Math.min(offset + 8, filtered.length)}`;
+  $('#editorial-results').innerHTML = `<div class="editorial-list">${
+    filtered.length
+      ? visible
+          .map((v) => {
+            const isActivePublished =
+              v.status === 'published' && (!v.published_version || v.id === v.published_version);
+            const canEdit = ['draft', 'rejected'].includes(v.status) || isActivePublished;
+            const isEditor = state.user?.role === 'editor';
+            return `<article class="editorial-item ${['submitted', 'approved'].includes(v.status) ? 'needs-review' : ''}"><div><div class="status-row"><span class="status ${esc(v.status)}">${esc(labels[v.status] || v.status)}</span>${v.status === 'scheduled' && v.scheduled_at ? `<span class="schedule-pill">Hẹn xuất bản: ${dateTime(v.scheduled_at)}</span>` : ''}</div><h3>${esc(v.title)}</h3><div class="meta">${esc(v.author_name)} · ${esc(v.category_name)} · ${date(v.updated_at)}</div></div><div class="actions"><button class="button outline small" data-preview="${esc(v.id)}">Xem</button>${canEdit ? `<button class="button outline small" data-edit="${esc(v.id)}">${v.status === 'published' ? 'Tạo bản sửa' : 'Sửa'}</button>` : ''}${['draft', 'rejected'].includes(v.status) ? `<button class="button small" data-action="submit" data-version="${esc(v.id)}">Gửi duyệt</button>` : ''}${isEditor && v.status === 'submitted' ? `<button class="button small" data-action="approve" data-version="${esc(v.id)}">Duyệt</button><button class="button outline small" data-action="reject" data-version="${esc(v.id)}">Yêu cầu sửa</button>` : ''}${isEditor && v.status === 'approved' ? `<button class="button small" data-action="publish" data-version="${esc(v.id)}">Xuất bản</button><button class="button outline small" data-schedule="${esc(v.id)}">Hẹn giờ xuất bản</button>` : ''}${isEditor && v.status === 'scheduled' ? `<button class="button outline small" data-schedule="${esc(v.id)}">Đổi lịch hẹn</button><button class="button outline small" data-action="unschedule" data-version="${esc(v.id)}">Hủy hẹn giờ</button><button class="button small" data-action="publish" data-version="${esc(v.id)}">Xuất bản ngay</button>` : ''}</div></article>`;
+          })
+          .join('')
+      : '<div class="empty"><h2>Chưa có bài phù hợp.</h2><p>Thử đổi từ khóa, trạng thái hoặc danh mục.</p></div>'
+  }</div>`;
+  document
+    .querySelectorAll('[data-edit]')
+    .forEach(
+      (b) => (b.onclick = () => editArticle(activeVersions.find((v) => v.id === b.dataset.edit))),
+    );
+  document
+    .querySelectorAll('[data-schedule]')
+    .forEach(
+      (b) =>
+        (b.onclick = () =>
+          scheduleArticle(activeVersions.find((v) => v.id === b.dataset.schedule))),
+    );
+  document.querySelectorAll('[data-preview]').forEach(
+    (b) =>
+      (b.onclick = async () => {
+        const v = activeVersions.find((x) => x.id === b.dataset.preview);
+        if (!v) return;
+        modal(
+          `<div class="status-row"><span class="status ${esc(v.status)}">${esc(labels[v.status] || v.status)}</span>${v.status === 'scheduled' && v.scheduled_at ? `<span class="schedule-pill">Hẹn xuất bản: ${dateTime(v.scheduled_at)}</span>` : ''}</div><h2>${esc(v.title)}</h2><div class="meta">${esc(v.author_name)} · ${esc(v.category_name)} · ${date(v.updated_at)}</div><p class="summary">${esc(v.summary)}</p>${v.image ? '<img id="preview-image" class="article-hero" alt="Ảnh xem trước bài viết">' : ''}<div class="article-body">${articleBody(v.body)}</div><p class="hint">Phiên bản: ${esc(v.id)} · Cập nhật ${date(v.updated_at)}</p>`,
+        );
+        if (v.image) await loadModalImage(v.image, '#preview-image');
+      }),
+  );
+  document.querySelectorAll('[data-action]').forEach(
+    (b) =>
+      (b.onclick = async () => {
+        if (b.disabled) return;
+        const group = [...(b.closest('.actions')?.querySelectorAll('button') || [b])];
+        const previousDisabled = group.map((btn) => btn.disabled);
+        const originalLabel = b.textContent;
+        const versionId = b.dataset.version;
+        group.forEach((btn) => (btn.disabled = true));
+        b.setAttribute('aria-busy', 'true');
+        b.textContent = 'Đang xử lý…';
+        try {
+          await api(
+            `/api/versions/${encodeURIComponent(versionId)}/${encodeURIComponent(b.dataset.action)}`,
+            {
+              method: 'POST',
+              body: {},
+            },
+          );
+          toast(
+            {
+              submit: 'Đã gửi bài để duyệt',
+              approve: 'Đã duyệt bài',
+              reject: 'Đã yêu cầu chỉnh sửa',
+              publish: 'Đã xuất bản bài',
+              unschedule: 'Đã hủy hẹn giờ xuất bản',
+            }[b.dataset.action],
+          );
+          await run(workspace);
+          ($(`[data-preview="${CSS.escape(versionId)}"]`) || $('#editorial-count'))?.focus({
+            preventScroll: true,
+          });
+        } catch (e) {
+          toast(e.message);
+        } finally {
+          group.forEach((btn, idx) => {
+            if (btn.isConnected) btn.disabled = previousDisabled[idx];
+          });
+          b.removeAttribute('aria-busy');
+          b.textContent = originalLabel;
+        }
+      }),
+  );
+  if (pages > 1) {
+    $('#editorial-results').insertAdjacentHTML(
+      'beforeend',
+      `<nav class="pagination" aria-label="Phân trang biên tập"><button id="editorial-prev" class="button outline small" ${state.editorialPage === 1 ? 'disabled' : ''}>← Trước</button><span>Trang ${state.editorialPage} / ${pages}</span><button id="editorial-next" class="button outline small" ${state.editorialPage === pages ? 'disabled' : ''}>Tiếp →</button></nav>`,
+    );
+    $('#editorial-prev').onclick = () => {
+      state.editorialPage--;
+      renderEditorialList(versions);
+      focusResults('#editorial-count');
+    };
+    $('#editorial-next').onclick = () => {
+      state.editorialPage++;
+      renderEditorialList(versions);
+      focusResults('#editorial-count');
+    };
+  }
+  refreshMotion();
+}
+
+function editArticle(v) {
+  if (!state.user) return login().catch((e) => toast(e.message));
+  if (!state.categories.length) {
+    toast('Biên tập viên cần tạo danh mục trước khi viết bài.');
+    return;
+  }
+  const categoryLocked = !!v && !['draft', 'rejected'].includes(v.status);
+  modal(
+    `<span class="eyebrow">BẢN THẢO</span><h2>${v ? 'Chỉnh sửa câu chuyện' : 'Một câu chuyện mới.'}</h2><form><label for="title">Tiêu đề</label><input id="title" name="title" value="${esc(v?.title)}" maxlength="180" required><label for="category">Danh mục</label><select id="category" name="category_id" ${categoryLocked ? 'disabled' : ''}>${state.categories.map((c) => `<option value="${esc(c.id)}" ${v?.category_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><label for="summary">Tóm tắt</label><textarea id="summary" name="summary" maxlength="500" required>${esc(v?.summary)}</textarea><label for="body">Nội dung</label><textarea id="body" name="body" maxlength="50000" required>${esc(v?.body)}</textarea>${v?.image ? '<div id="editor-image-box" class="editor-image-preview"><img id="editor-image-preview" class="article-hero" alt="Ảnh hiện tại của bài viết"><label class="checkbox-inline"><input id="clear-image" type="checkbox" name="clear_image" value="1"> Xóa ảnh hiện tại</label></div>' : ''}<label for="image">Ảnh bài viết</label><input id="image" type="file" name="file" accept="image/png,image/jpeg,image/webp"><p class="hint">PNG, JPEG hoặc WebP · Tối đa 5 MB</p>${errorBox()}<div class="form-actions"><button type="submit" class="button">Lưu bản nháp ↗</button><span class="hint">${v?.status === 'published' ? 'Bản đang công khai được giữ nguyên cho đến khi bản sửa được duyệt và xuất bản.' : 'Lưu xong, bạn có thể gửi bài để duyệt.'}</span></div></form>`,
+  );
+  if (v?.image) {
+    loadModalImage(v.image, '#editor-image-preview');
+    $('#image')?.addEventListener('change', () => {
+      if ($('#image').files[0] && $('#clear-image')) $('#clear-image').checked = false;
+    });
+  }
+  const backup = new DraftSession(state.user.id, v?.id || 'new'),
+    saved = backup.load(),
+    form = $('#dialog form');
+  draftSession = backup;
+  const fields = ['title', 'summary', 'body'];
+  if (saved) {
+    for (const name of fields)
+      if (typeof saved.fields[name] === 'string') form.elements[name].value = saved.fields[name];
+    if (
+      !categoryLocked &&
+      saved.fields.category_id &&
+      state.categories.some((c) => c.id === saved.fields.category_id)
+    )
+      form.elements.category_id.value = saved.fields.category_id;
+    draftDirty = true;
+  }
+  form.insertAdjacentHTML(
+    'afterbegin',
+    `<p id="draft-backup" class="draft-backup" role="status">${saved ? 'Đã khôi phục bản lưu tạm trong tab này.' : 'Thay đổi được lưu tạm trong tab này, chưa gửi lên máy chủ.'}${saved?.fields.fileName ? ' Ảnh đã chọn trước đó cần được chọn lại.' : ''}</p>`,
+  );
+  const remember = () => {
+    draftDirty = true;
+    const values = Object.fromEntries(fields.map((name) => [name, form.elements[name].value]));
+    values.category_id = categoryLocked ? v.category_id : form.elements.category_id.value;
+    values.fileName = form.elements.file.files[0]?.name || '';
+    $('#draft-backup').textContent = backup.save(values)
+      ? 'Đã lưu tạm trong tab này · Chưa lưu lên máy chủ.'
+      : 'Không thể lưu tạm trên trình duyệt. Hãy lưu bản nháp trước khi đóng.';
+  };
+  form.addEventListener('input', remember);
+  form.addEventListener('change', remember);
+  bindForm(async (data, form) => {
+    let image = data.clear_image ? '' : v?.image || '';
+    const file = form.elements.file.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) throw new Error('Ảnh tối đa 5 MB');
+      setFormStatus('Đang tải ảnh bài viết…');
+      image = (await api('/api/uploads', { method: 'POST', body: file })).url;
+    }
+    setFormStatus('Đang lưu bản nháp…');
+    const categoryId = categoryLocked
+      ? v.category_id
+      : data.category_id || form.elements.category_id.value;
+    const body = {
+      title: data.title,
+      summary: data.summary,
+      body: data.body,
+      category_id: categoryId,
+      image,
+    };
+    const savedResult = await api(
+      v ? `/api/versions/${encodeURIComponent(v.id)}` : '/api/articles',
+      { method: v ? 'PUT' : 'POST', body },
+    );
+    backup.clear();
+    draftDirty = false;
+    await dismissDialog($('#dialog'));
+    toast('Đã lưu bản nháp');
+    state.tab = 'articles';
+    state.editorialQuery = '';
+    state.editorialStatus = '';
+    state.editorialCategory = '';
+    state.editorialPage = 1;
+    state.editorialSort = 'updated-desc';
+    await run(workspace);
+    const targetId = savedResult?.version_id || v?.id;
+    if (targetId) {
+      (
+        $(`[data-edit="${CSS.escape(targetId)}"]`) ||
+        $(`[data-preview="${CSS.escape(targetId)}"]`) ||
+        $('#new-article')
+      )?.focus({ preventScroll: true });
+    }
+  });
+}
+async function cognitoLogin() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32)),
+    encode = (a) =>
+      btoa(String.fromCharCode(...a))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+  const verifier = encode(bytes),
+    nonce = encode(crypto.getRandomValues(new Uint8Array(16)));
+  sessionStorage.setItem('oauth_verifier', verifier);
+  sessionStorage.setItem('oauth_state', nonce);
+  const challenge = encode(
+    new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))),
+  );
+  const p = new URLSearchParams({
+    response_type: 'code',
+    client_id: state.config.clientId,
+    redirect_uri: state.config.redirectUri,
+    scope: 'openid email profile aws.cognito.signin.user.admin',
+    state: nonce,
+    code_challenge_method: 'S256',
+    code_challenge: challenge,
+  });
+  location.assign(`${state.config.cognitoDomain}/oauth2/authorize?${p}`);
+}
+async function finishOAuth() {
+  const url = new URL(location.href),
+    p = url.searchParams;
+  const hasCode = p.has('code'),
+    hasOAuthError =
+      !state.config?.localAuth && p.has('error') && !!sessionStorage.getItem('oauth_state');
+  if (!hasCode && !hasOAuthError) return;
+  let succeeded = false;
+  try {
+    if (hasOAuthError) throw new Error('Không thể hoàn thành đăng nhập');
+    const expectedState = sessionStorage.getItem('oauth_state'),
+      verifier = sessionStorage.getItem('oauth_verifier');
+    if (!expectedState || !verifier || p.get('state') !== expectedState)
+      throw new Error('Phiên đăng nhập không hợp lệ');
+    const r = await fetch(`${state.config.cognitoDomain}/oauth2/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: state.config.clientId,
+        redirect_uri: state.config.redirectUri,
+        code: p.get('code'),
+        code_verifier: verifier,
+      }),
+    });
+    if (!r.ok) throw new Error('Không thể hoàn thành đăng nhập');
+    const token = await r.json();
+    if (!token?.access_token) throw new Error('Không thể hoàn thành đăng nhập');
+    sessionStorage.setItem('uth_access_token', token.access_token);
+    succeeded = true;
+  } finally {
+    sessionStorage.removeItem('oauth_state');
+    sessionStorage.removeItem('oauth_verifier');
+    if (succeeded) {
+      history.replaceState(history.state, '', '/?view=workspace');
+    } else {
+      p.delete('code');
+      p.delete('state');
+      p.delete('error');
+      p.delete('error_description');
+      const qs = p.toString();
+      history.replaceState(history.state, '', url.pathname + (qs ? '?' + qs : '') + url.hash);
+    }
+  }
+}
+async function route() {
+  Object.assign(state, readRouteState(location.search));
+  if (state.user && state.user.role !== 'editor' && ['manage', 'ops'].includes(state.tab))
+    state.tab = 'articles';
+  updateHeader();
+  document.title = 'UTH Campus — Tin tức & Kết nối';
+  if (location.pathname.startsWith('/article/')) {
+    let slug = '';
+    try {
+      slug = decodeURIComponent(location.pathname.slice(9));
+    } catch {
+      slug = '';
+    }
+    if (!slug || slug.includes('/') || slug.includes('\0')) {
+      document.title = 'Đường dẫn không hợp lệ — UTH Campus';
+      $('#content').innerHTML =
+        '<div class="empty" role="alert"><h2>Đường dẫn bài viết không hợp lệ.</h2><p>Liên kết bạn truy cập chứa ký tự hoặc định dạng không đúng.</p><a data-route class="button outline" href="/">Về trang chủ ↗</a></div>';
+      return;
+    }
+    await article(slug);
+  } else if (new URLSearchParams(location.search).get('view') === 'workspace') await workspace();
+  else await home();
+}
+function loadingView() {
+  const editorial = new URLSearchParams(location.search).get('view') === 'workspace';
+  const label = editorial
+    ? 'Đang tải không gian biên tập…'
+    : state.query
+      ? 'Đang tìm kiếm tin tức…'
+      : 'Đang tải nội dung…';
+  if (!state.config) {
+    $('#account').disabled = true;
+    $('#site-search').disabled = true;
+    $('#search button').disabled = true;
+  }
+  $('#view-status').textContent = label;
+  $('#content').setAttribute('aria-busy', 'true');
+  $('#content').innerHTML =
+    `<div class="loading-shell" aria-hidden="true"><p class="loading-caption">${label}</p><div class="skeleton skeleton-heading"></div><div class="skeleton skeleton-line"></div><div class="skeleton-grid">${Array.from({ length: editorial ? 4 : 3 }, () => '<div class="skeleton-card"><div class="skeleton skeleton-picture"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line short"></div></div>').join('')}</div></div>`;
+  refreshMotion();
+}
+async function run(fn) {
+  const generation = ++viewGeneration;
+  viewController?.abort();
+  viewController = new AbortController();
+  loadingView();
+  try {
+    await fn();
+    return generation === viewGeneration;
+  } catch (e) {
+    if (generation !== viewGeneration || e.name === 'AbortError') return false;
+    if (state.config) updateHeader();
+    else {
+      $('#account').disabled = false;
+      $('#site-search').disabled = false;
+      $('#search button').disabled = false;
+    }
+    $('#content').innerHTML =
+      `<div class="empty" role="alert"><h2>Chưa thể tải nội dung.</h2><p>${esc(e.message)}</p><button class="button outline" id="retry">Thử lại</button></div>`;
+    $('#retry').onclick = () => run(fn);
+    return false;
+  } finally {
+    if (generation === viewGeneration) {
+      $('#content').removeAttribute('aria-busy');
+      $('#view-status').textContent = '';
+      refreshMotion();
+    }
+  }
+}
+
+let routeIndex = history.state?.index || 0,
+  restoringHistory = false;
+history.replaceState({ ...history.state, index: routeIndex }, '', location.href);
+async function navigate(path) {
+  if ($('#dialog').open) {
+    if (!confirmDraftLeave()) return;
+    await dismissDialog($('#dialog'));
+  }
+  history.replaceState({ ...history.state, scrollY }, '', location.href);
+  history.pushState({ index: ++routeIndex, scrollY: 0 }, '', path);
+  await run(route);
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-route],a.brand');
+  if (a && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.button === 0) {
+    e.preventDefault();
+    navigate(a.getAttribute('href'));
+  }
+});
+window.addEventListener('popstate', async () => {
+  if (restoringHistory) {
+    restoringHistory = false;
+    return;
+  }
+  const nextIndex = history.state?.index || 0;
+  if ($('#dialog').open && !confirmDraftLeave()) {
+    restoringHistory = true;
+    history.go(routeIndex - nextIndex);
+    return;
+  }
+  if ($('#dialog').open) await dismissDialog($('#dialog'));
+  routeIndex = nextIndex;
+  const y = history.state?.scrollY || 0;
+  await run(route);
+  window.scrollTo({ top: y, behavior: 'instant' });
+});
+
+run(async () => {
+  state.config = await api('/api/config');
+  await finishOAuth();
+  const [categories, auth] = await Promise.all([api('/api/categories'), api('/api/auth/me')]);
+  state.categories = categories;
+  state.user = auth.user;
+  await route();
+});
+
+function changePassword() {
+  modal(
+    `<h2>Đổi mật khẩu</h2><form><label>Mật khẩu hiện tại<input name="currentPassword" type="password" autocomplete="current-password" required></label><label>Mật khẩu mới<input name="newPassword" type="password" minlength="12" maxlength="256" autocomplete="new-password" required></label><p class="hint">Tối thiểu 12 ký tự. Với AWS, cần chữ hoa, chữ thường, số và ký hiệu.</p>${errorBox()}<button type="submit" class="button">Lưu mật khẩu</button></form>`,
+  );
+  bindForm(async (data) => {
+    await api('/api/auth/password', { method: 'POST', body: data });
+    sessionStorage.removeItem('uth_access_token');
+    DraftSession.clearUser(state.user?.id);
+    state.user = null;
+    await dismissDialog($('#dialog'));
+    updateHeader();
+    navigate('/');
+    toast('Đã đổi mật khẩu. Vui lòng đăng nhập lại.');
+  });
+}
